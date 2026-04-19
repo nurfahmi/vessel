@@ -1,0 +1,46 @@
+<% var pageTitle = 'Iran / FS' %>
+<div class="flex items-center justify-between mb-4">
+  <h2 class="text-2xl font-bold text-white">Iran / Floating Storage / India</h2>
+  <div class="flex gap-1">
+    <a href="/iran-fs?category=india" class="btn btn-sm <%= category==='india' ? 'btn-primary' : 'bg-slate-700 text-white' %>">India</a>
+    <a href="/iran-fs?category=iran" class="btn btn-sm <%= category==='iran' ? 'btn-primary' : 'bg-slate-700 text-white' %>">Iran</a>
+    <a href="/iran-fs?category=floating_storage" class="btn btn-sm <%= category==='floating_storage' ? 'btn-primary' : 'bg-slate-700 text-white' %>">Floating Storage</a>
+  </div>
+</div>
+<details class="card mb-4">
+  <summary class="cursor-pointer text-sm font-medium text-slate-300">+ Add Vessel</summary>
+  <form action="/iran-fs" method="POST" class="mt-4 grid grid-cols-4 gap-3">
+    <input type="hidden" name="category" value="<%= category %>">
+    <input type="text" name="vessel_name" required placeholder="Vessel Name" class="input input-sm">
+    <input type="text" name="built" placeholder="Built" class="input input-sm">
+    <input type="number" name="cbm" placeholder="CBM" class="input input-sm">
+    <input type="text" name="disponent" placeholder="Disponent" class="input input-sm">
+    <input type="text" name="operator" placeholder="Operator" class="input input-sm">
+    <input type="text" name="position" placeholder="Position" class="input input-sm">
+    <input type="date" name="open_from" class="input input-sm">
+    <button type="submit" class="btn btn-sm btn-success">Add</button>
+  </form>
+</details>
+<div class="card p-0 overflow-hidden">
+  <table class="data-table">
+    <thead><tr><th>#</th><th>Vessel</th><th>Built</th><th>CBM</th><th>Disponent</th><th>Operator</th><th>Position</th><th>Open From</th><th>TC Expiry</th><th>Panama</th><th>S/DF</th><th class="w-12"></th></tr></thead>
+    <tbody>
+      <% vessels.forEach((v, i) => { %>
+        <tr>
+          <td class="text-slate-500"><%= i+1 %></td>
+          <td class="font-medium text-white"><%= v.vessel_name %></td>
+          <td><%= v.built || '' %></td>
+          <td><%= v.cbm ? Math.round(v.cbm).toLocaleString() : '' %></td>
+          <td class="text-blue-300"><%= v.disponent || '' %></td>
+          <td class="text-slate-400"><%= v.operator || '' %></td>
+          <td><%= v.position || '' %></td>
+          <td><%= v.open_from ? new Date(v.open_from).toLocaleDateString() : '' %></td>
+          <td><%= v.tc_expiry ? new Date(v.tc_expiry).toLocaleDateString() : '' %></td>
+          <td><%= v.panama_fitted ? 'P' : '' %></td>
+          <td><%= v.scrubber_df || '' %></td>
+          <td><button onclick="if(confirm('Delete?'))fetch('/iran-fs/<%= v.id %>',{method:'DELETE'}).then(()=>location.reload())" class="text-red-400 hover:text-red-300 text-xs">✕</button></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

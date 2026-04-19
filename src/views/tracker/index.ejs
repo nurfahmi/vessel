@@ -1,0 +1,343 @@
+<% var pageTitle = 'Tracker' %>
+
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <h2 class="text-2xl font-bold text-white">Fleet Tracker</h2>
+    <p class="text-slate-400 text-sm mt-1">
+      <%= entries.length %> vessels — 
+      <span class="text-cyan-400">⚡ = Kpler API</span> · 
+      <span class="text-white">✎ = Manual</span>
+    </p>
+  </div>
+  <div class="flex items-center gap-2">
+    <div class="relative">
+      <input type="text" id="addVesselInput" placeholder="+ Add vessel..." class="input input-sm w-44" oninput="searchVessels(this.value)" autocomplete="off">
+      <div id="vesselSuggestions" class="absolute z-50 top-full left-0 right-0 bg-slate-800 border border-slate-700 rounded-b shadow-xl max-h-48 overflow-y-auto hidden"></div>
+    </div>
+    <select id="filterController" onchange="filterTable()" class="input input-sm">
+      <option value="">All Controllers</option>
+      <% controllers.forEach(c => { %>
+        <option value="<%= c %>" <%= filter === c ? 'selected' : '' %>><%= c %></option>
+      <% }) %>
+    </select>
+    <input type="text" id="searchInput" placeholder="Search..." class="input input-sm w-36" oninput="filterTable()">
+    <button id="btnBulkAI" class="btn btn-sm bg-violet-600 text-white hover:bg-violet-700" onclick="bulkAIAnalyze()">🤖 AI All</button>
+  </div>
+</div>
+
+<!-- Bulk AI Progress -->
+<div id="aiProgress" style="display:none" class="mb-3 bg-slate-800/80 rounded-lg px-4 py-2 flex items-center gap-3">
+  <div class="animate-spin text-violet-400">⟳</div>
+  <div class="flex-1">
+    <div class="text-sm font-medium text-white" id="aiStatus">Analyzing...</div>
+    <div class="w-full bg-slate-700 rounded-full h-1.5 mt-1"><div id="aiBar" class="bg-violet-500 h-1.5 rounded-full transition-all" style="width:0%"></div></div>
+  </div>
+  <span id="aiCount" class="text-xs text-slate-400"></span>
+</div>
+
+<div class="card p-0 overflow-hidden">
+  <div class="overflow-x-auto max-h-[calc(100vh-200px)]">
+    <table class="data-table" id="trackerTable">
+      <thead>
+        <tr>
+          <th class="w-8">#</th>
+          <!-- STATIC: from vessels table -->
+          <th>Vessel</th>
+          <th>BLT</th>
+          <th>CBM</th>
+          <!-- API: from Kpler -->
+          <th class="border-l border-slate-700">⚡ Controller</th>
+          <th>⚡ AIS</th>
+          <th>⚡ State</th>
+          <th>⚡ AIS Dest</th>
+          <th>Laden v Cape</th>
+          <!-- EDITABLE -->
+          <th class="border-l border-slate-700">Position</th>
+          <th>Open From</th>
+          <th>Open To</th>
+          <!-- MANUAL ONLY -->
+          <th class="border-l border-slate-700">✎ Notes</th>
+          <th>✎ Next Loading</th>
+          <th>✎ Voyage</th>
+          <th>By</th>
+          <!-- CALCULATED -->
+          <% destinations.forEach(d => { %>
+            <th class="text-center bg-slate-900"><%= d.label %></th>
+          <% }) %>
+        </tr>
+      </thead>
+      <tbody>
+        <% entries.forEach((e, i) => { %>
+          <tr data-id="<%= e.id %>" data-controller="<%= (e.controller || '').toLowerCase() %>" data-name="<%= (e.vessel_name || '').toLowerCase() %>">
+            <td class="text-slate-500"><%= i + 1 %></td>
+            <!-- STATIC -->
+            <td class="font-medium text-white whitespace-nowrap">
+              <% if (e.kpler_vessel_id) { %>
+                <a href="/vessel-intel/<%= e.kpler_vessel_id %>" class="hover:text-cyan-300 transition-colors"><%= e.vessel_name %></a>
+              <% } else { %>
+                <%= e.vessel_name %>
+              <% } %>
+              <% if (e.us_trade || e.chinese_built || e.scrubber_df || e.deck_tank) { %>
+                <span class="ml-1 text-[9px] opacity-60">
+                  <% if (e.us_trade) { %><span class="text-amber-300">US</span> <% } %>
+                  <% if (e.chinese_built) { %><span class="text-red-300">CN</span> <% } %>
+                  <% if (e.scrubber_df === 'scrubber') { %><span class="text-green-300">S</span><% } else if (e.scrubber_df === 'dual_fuel') { %><span class="text-purple-300">DF</span><% } else if (e.scrubber_df === 'deck_tank') { %><span class="text-sky-300">DT</span><% } %>
+                  <% if (e.deck_tank) { %><span class="text-sky-300">DT</span> <% } %>
+                </span>
+              <% } %>
+            </td>
+            <td class="text-slate-400"><%= e.built || e.kpler_built_year || '' %></td>
+            <td><%= (e.kpler_cbm || e.cbm) ? Math.round(e.kpler_cbm || e.cbm).toLocaleString() : '' %></td>
+            
+            <!-- API -->
+            <td class="border-l border-slate-800 text-blue-300"><%= e.controller || '' %></td>
+            <!-- AIS destination -->
+            <td class="text-slate-400 text-xs whitespace-nowrap"><%= e.next_dest_name || e.ais_destination || '' %></td>
+            <td>
+              <% if (e.kpler_state) { %>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium
+                  <%= e.kpler_state === 'loaded' ? 'bg-emerald-900/50 text-emerald-300' : 
+                     e.kpler_state === 'ballast' ? 'bg-blue-900/50 text-blue-300' : 
+                     'bg-slate-700 text-slate-300' %>">
+                  <%= e.kpler_state %>
+                </span>
+              <% } else { %>
+                <span class="text-slate-600 text-[10px]">—</span>
+              <% } %>
+            </td>
+            <!-- AIS Dest (read-only) -->
+            <td class="text-cyan-400/60 text-[10px] whitespace-nowrap" title="<%= [e.ais_destination, e.kpler_position, e.zone_port].filter(Boolean).join(' / ') %>">
+              <%= e.ais_destination || e.next_dest_name || '' %>
+            </td>
+            <!-- Laden v Cape -->
+            <td>
+              <select class="inline-edit text-[10px]" data-field="laden_v_cape" onchange="saveField(this)">
+                <option value=""></option>
+                <option value="Cape" <%= e.laden_v_cape === 'Cape' ? 'selected' : '' %>>Cape</option>
+                <option value="Laden" <%= e.laden_v_cape === 'Laden' ? 'selected' : '' %>>Laden</option>
+              </select>
+            </td>
+
+            <!-- EDITABLE Position (dropdown for ETA calc) -->
+            <td class="border-l border-slate-800">
+              <div class="flex items-center gap-0.5">
+                <select class="inline-edit text-[11px] flex-1" data-field="position" onchange="saveField(this)" style="min-width:90px" id="pos-<%= e.id %>">
+                  <option value=""></option>
+                  <% positionOptions.forEach(p => { %>
+                    <option value="<%= p %>" <%= e.position === p ? 'selected' : '' %>><%= p %></option>
+                  <% }) %>
+                </select>
+                <button class="text-[10px] px-1 py-0.5 rounded hover:bg-slate-700 transition-colors <%= e._src.position === 'api' ? 'text-cyan-400' : 'text-slate-500' %>"
+                  onclick="aiAnalyze(this, <%= e.id %>)" title="AI analyze position">🤖</button>
+              </div>
+            </td>
+            <td>
+              <div class="relative">
+                <input type="date" class="inline-edit <%= e._src.open_from === 'api' ? 'text-cyan-300' : '' %>" 
+                  value="<%= e.open_from ? new Date(e.open_from).toISOString().split('T')[0] : '' %>" 
+                  data-field="open_from" onchange="saveField(this)"
+                  title="<%= e._src.open_from === 'api' ? 'Auto-filled from Kpler' : 'Manual entry' %>">
+                <% if (e._src.open_from === 'api') { %><span class="absolute right-0.5 top-0.5 text-[8px] text-cyan-500">⚡</span><% } %>
+              </div>
+            </td>
+            <td>
+              <div class="relative">
+                <input type="date" class="inline-edit <%= e._src.open_to === 'api' ? 'text-cyan-300' : '' %>" 
+                  value="<%= e.open_to ? new Date(e.open_to).toISOString().split('T')[0] : '' %>" 
+                  data-field="open_to" onchange="saveField(this)"
+                  title="<%= e._src.open_to === 'api' ? 'Auto-filled from Kpler' : 'Manual entry' %>">
+                <% if (e._src.open_to === 'api') { %><span class="absolute right-0.5 top-0.5 text-[8px] text-cyan-500">⚡</span><% } %>
+              </div>
+            </td>
+
+            <!-- MANUAL ONLY -->
+            <td class="border-l border-slate-800"><input class="inline-edit w-32" value="<%= e.notes || '' %>" data-field="notes" onchange="saveField(this)"></td>
+            <td><input class="inline-edit w-28" value="<%= e.next_loading || '' %>" data-field="next_loading" onchange="saveField(this)"></td>
+            <td><input class="inline-edit w-36" value="<%= e.current_voyage || '' %>" data-field="current_voyage" onchange="saveField(this)"></td>
+            <td class="text-slate-500 text-center text-[10px]"><%= e.edited_by || '' %></td>
+
+            <!-- CALCULATED -->
+            <% destinations.forEach(d => { %>
+              <td class="text-center text-[10px] <%= e.etas && e.etas[d.key] ? 'text-cyan-300' : 'text-slate-600' %>">
+                <%= e.etas && e.etas[d.key] ? e.etas[d.key].formatted : '—' %>
+              </td>
+            <% }) %>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+async function saveField(input) {
+  const row = input.closest('tr');
+  const id = row.dataset.id;
+  const fields = {};
+  row.querySelectorAll('.inline-edit').forEach(el => {
+    fields[el.dataset.field] = el.value;
+  });
+  try {
+    const res = await fetch(`/tracker/update/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields)
+    });
+    if (res.ok) {
+      input.style.backgroundColor = '#065f4620';
+      // Remove API indicator since user manually edited
+      const bolt = input.parentElement.querySelector('span');
+      if (bolt) bolt.remove();
+      input.classList.remove('text-cyan-300');
+      setTimeout(() => input.style.backgroundColor = '', 1000);
+    }
+  } catch (err) {
+    input.style.backgroundColor = '#7f1d1d40';
+  }
+}
+
+function filterTable() {
+  const ctrl = document.getElementById('filterController').value.toLowerCase();
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  document.querySelectorAll('#trackerTable tbody tr').forEach(row => {
+    const matchCtrl = !ctrl || row.dataset.controller.includes(ctrl);
+    const matchSearch = !search || row.dataset.name.includes(search);
+    row.style.display = (matchCtrl && matchSearch) ? '' : 'none';
+  });
+}
+
+async function aiAnalyze(btn, entryId) {
+  const orig = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/tracker/api/ai-position/${entryId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.error) { alert('AI Error: ' + data.error); return; }
+    
+    // Set dropdown value
+    const select = document.getElementById('pos-' + entryId);
+    if (select) {
+      select.value = data.position;
+      select.dispatchEvent(new Event('change')); // triggers saveField
+    }
+    btn.title = 'AI: ' + data.reason;
+    btn.textContent = '✅';
+    btn.className = btn.className.replace('text-slate-500', 'text-green-400').replace('text-cyan-400', 'text-green-400');
+    setTimeout(() => { btn.textContent = '🤖'; }, 3000);
+  } catch (err) {
+    alert('AI error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    if (btn.textContent === '⏳') btn.textContent = orig;
+  }
+}
+
+async function bulkAIAnalyze() {
+  const rows = document.querySelectorAll('#trackerTable tbody tr');
+  const ids = [];
+  rows.forEach(row => { if (row.style.display !== 'none') ids.push(row.dataset.id); });
+  
+  if (!confirm(`Run AI analysis on ${ids.length} vessels? (~$0.03)`)) return;
+  
+  document.getElementById('aiProgress').style.display = 'flex';
+  document.getElementById('btnBulkAI').disabled = true;
+  document.getElementById('btnBulkAI').textContent = '⏳ Running...';
+  
+  let done = 0, updated = 0, failed = 0;
+  
+  for (const id of ids) {
+    done++;
+    const pct = Math.round((done / ids.length) * 100);
+    document.getElementById('aiBar').style.width = pct + '%';
+    document.getElementById('aiCount').textContent = `${done}/${ids.length}`;
+    
+    try {
+      const res = await fetch(`/tracker/api/ai-position/${id}`, { method: 'POST' });
+      const data = await res.json();
+      
+      if (data.error) {
+        failed++;
+        document.getElementById('aiStatus').textContent = `${done}/${ids.length} — ⚠ ${data.error}`;
+        continue;
+      }
+      
+      // Update dropdown live
+      const select = document.getElementById('pos-' + id);
+      if (select && data.position) {
+        select.value = data.position;
+        select.dispatchEvent(new Event('change'));
+        updated++;
+      }
+      
+      // Update the 🤖 button
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      const btn = row?.querySelector('button[onclick*="aiAnalyze"]');
+      if (btn) { btn.title = 'AI: ' + data.reason; btn.className = btn.className.replace('text-slate-500', 'text-green-400').replace('text-cyan-400', 'text-green-400'); }
+      
+      document.getElementById('aiStatus').textContent = `${done}/${ids.length} — ${data.position}`;
+    } catch (err) {
+      failed++;
+    }
+  }
+  
+  document.getElementById('aiStatus').textContent = `✓ Done — ${updated} updated, ${failed} failed`;
+  document.getElementById('aiBar').style.width = '100%';
+  document.getElementById('btnBulkAI').disabled = false;
+  document.getElementById('btnBulkAI').textContent = '🤖 AI All';
+  setTimeout(() => { document.getElementById('aiProgress').style.display = 'none'; }, 5000);
+}
+let searchTimer;
+function searchVessels(q) {
+  clearTimeout(searchTimer);
+  const box = document.getElementById('vesselSuggestions');
+  if (q.length < 2) { box.classList.add('hidden'); return; }
+  searchTimer = setTimeout(async () => {
+    const r = await fetch('/tracker/api/search-vessels?q=' + encodeURIComponent(q));
+    const vessels = await r.json();
+    if (vessels.length === 0) {
+      box.innerHTML = `<div class="px-3 py-2 text-slate-400 text-xs">No match — press Enter to add "<b>${q}</b>"</div>`;
+    } else {
+      box.innerHTML = vessels.map(v => 
+        `<div class="px-3 py-1.5 hover:bg-slate-700 cursor-pointer text-sm flex justify-between" onclick="addVessel('${v.name.replace(/'/g,"\\'")}')">
+          <span class="text-white">${v.name}</span>
+          <span class="text-slate-500 text-xs">${v.cbm ? Math.round(v.cbm).toLocaleString() + ' cbm' : v.status}</span>
+        </div>`
+      ).join('');
+    }
+    box.classList.remove('hidden');
+  }, 200);
+}
+
+async function addVessel(name) {
+  const box = document.getElementById('vesselSuggestions');
+  box.classList.add('hidden');
+  document.getElementById('addVesselInput').value = '';
+  try {
+    const r = await fetch('/tracker/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vessel_name: name })
+    });
+    const d = await r.json();
+    if (d.success) location.reload();
+    else alert(d.error || 'Failed');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// Allow Enter to add custom name
+document.getElementById('addVesselInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const name = e.target.value.trim();
+    if (name) addVessel(name);
+  }
+});
+
+// Close suggestions on click outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#addVesselInput') && !e.target.closest('#vesselSuggestions')) {
+    document.getElementById('vesselSuggestions').classList.add('hidden');
+  }
+});
+</script>

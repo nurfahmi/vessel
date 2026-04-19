@@ -1,0 +1,161 @@
+<% var pageTitle = 'Dashboard' %>
+
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-white">Fleet Overview</h2>
+  <p class="text-slate-400 text-sm mt-1">VLGC fleet status and statistics</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <!-- Vessels -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-slate-400 text-sm">Control List</span>
+      <div class="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
+        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      </div>
+    </div>
+    <div class="text-3xl font-bold text-white"><%= vesselCount %></div>
+    <div class="text-xs text-slate-500 mt-1">registered vessels</div>
+  </div>
+
+  <!-- Active -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-slate-400 text-sm">Active (Kpler)</span>
+      <div class="w-10 h-10 rounded-lg bg-emerald-600/20 flex items-center justify-center">
+        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+    </div>
+    <div class="text-3xl font-bold text-white"><%= activeCount %></div>
+    <div class="text-xs text-slate-500 mt-1">actively trading</div>
+  </div>
+
+  <!-- Under Construction -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-slate-400 text-sm">Under Construction</span>
+      <div class="w-10 h-10 rounded-lg bg-amber-600/20 flex items-center justify-center">
+        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+      </div>
+    </div>
+    <div class="text-3xl font-bold text-white"><%= ucCount %></div>
+    <div class="text-xs text-slate-500 mt-1">newbuilds</div>
+  </div>
+
+  <!-- Voyage Routes -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-slate-400 text-sm">Voyage Routes</span>
+      <div class="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
+        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+      </div>
+    </div>
+    <div class="text-3xl font-bold text-white"><%= routeCount %></div>
+    <div class="text-xs text-slate-500 mt-1">port-to-port routes</div>
+  </div>
+</div>
+
+<!-- API Status + Fleet Stats -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+  <!-- Kpler API Status -->
+  <div class="card">
+    <h3 class="text-sm font-semibold text-slate-300 mb-3">Kpler API Status</h3>
+    <div class="space-y-3">
+      <!-- Token Status -->
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-400">Token</span>
+        <div class="flex items-center gap-2">
+          <% if (tokenStatus === 'active') { %>
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs text-emerald-400">Active</span>
+            <span class="text-[10px] text-slate-500">(<%= tokenAge %>m ago)</span>
+          <% } else if (tokenStatus === 'stale') { %>
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span class="text-xs text-amber-400">Stale</span>
+            <span class="text-[10px] text-slate-500">(<%= tokenAge %>m ago)</span>
+          <% } else if (tokenStatus === 'expired') { %>
+            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+            <span class="text-xs text-red-400">Expired</span>
+          <% } else { %>
+            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+            <span class="text-xs text-slate-500">No token</span>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Auto-Refresh -->
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-400">Auto-Refresh</span>
+        <span class="text-xs <%= hasRefreshToken ? 'text-emerald-400' : 'text-slate-500' %>">
+          <%= hasRefreshToken ? '✓ Every 4 min' : '✗ Not configured' %>
+        </span>
+      </div>
+
+      <!-- Last Sync -->
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-400">Last Sync</span>
+        <span class="text-xs text-slate-300">
+          <% if (lastSync) { %>
+            <%= new Date(lastSync).toLocaleString() %>
+          <% } else { %>
+            <span class="text-slate-500">Never</span>
+          <% } %>
+        </span>
+      </div>
+
+      <!-- Quick fix link -->
+      <% if (tokenStatus !== 'active') { %>
+        <a href="/settings" class="block text-center text-xs text-blue-400 hover:text-blue-300 mt-2">
+          <%= tokenStatus === 'inactive' ? 'Configure token in Settings →' : 'Refresh token in Settings →' %>
+        </a>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Fleet Status -->
+  <div class="card">
+    <h3 class="text-sm font-semibold text-slate-300 mb-3">Fleet Status</h3>
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-400">VLGC Fleet</span>
+        <span class="text-white font-medium"><%= kplerStats.total %> vessels</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-400">Ballast (Open)</span>
+        <span class="text-blue-300 font-medium"><%= kplerStats.ballast %></span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-400">Loaded</span>
+        <span class="text-emerald-300 font-medium"><%= kplerStats.loaded %></span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-400">Mapped to Tracker</span>
+        <span class="text-white"><%= kplerStats.mapped %> / <%= vesselCount %></span>
+      </div>
+      <!-- Bar -->
+      <div class="mt-2">
+        <div class="flex h-2 rounded-full overflow-hidden bg-slate-700">
+          <div class="bg-blue-500" style="width: <%= kplerStats.total ? Math.round(kplerStats.ballast / kplerStats.total * 100) : 0 %>%"></div>
+          <div class="bg-emerald-500" style="width: <%= kplerStats.total ? Math.round(kplerStats.loaded / kplerStats.total * 100) : 0 %>%"></div>
+        </div>
+        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+          <span>Ballast <%= kplerStats.total ? Math.round(kplerStats.ballast / kplerStats.total * 100) : 0 %>%</span>
+          <span>Loaded <%= kplerStats.total ? Math.round(kplerStats.loaded / kplerStats.total * 100) : 0 %>%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Links -->
+<div class="card">
+  <h3 class="text-sm font-semibold text-slate-300 mb-3">Quick Actions</h3>
+  <div class="flex flex-wrap gap-2">
+    <a href="/kpler" class="btn btn-sm bg-slate-700 text-white hover:bg-slate-600">Kpler Data</a>
+    <a href="/tracker" class="btn btn-sm bg-slate-700 text-white hover:bg-slate-600">View Tracker</a>
+    <a href="/sorter" class="btn btn-sm bg-slate-700 text-white hover:bg-slate-600">View Sorter</a>
+    <a href="/voyage" class="btn btn-sm bg-slate-700 text-white hover:bg-slate-600">Voyage Days</a>
+    <a href="/vessels" class="btn btn-sm bg-slate-700 text-white hover:bg-slate-600">Control List</a>
+    <a href="/settings" class="btn btn-sm bg-slate-700 text-white hover:bg-slate-600">Settings</a>
+  </div>
+</div>

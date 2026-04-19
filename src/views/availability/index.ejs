@@ -1,0 +1,248 @@
+<% var pageTitle = 'Fleet Availability' %>
+
+<style>
+  @media print {
+    body, html { background: white !important; }
+    .sidebar, .topbar, .no-print, nav { display: none !important; }
+    .main-content { margin: 0 !important; padding: 0 !important; }
+    .card { border: 1px solid #ddd !important; background: white !important; box-shadow: none !important; }
+    table { font-size: 8px !important; }
+    th, td { color: #111 !important; border-bottom: 1px solid #ddd !important; padding: 2px 3px !important; }
+    th { background: #f3f4f6 !important; font-weight: 700 !important; }
+    .text-emerald-300, .text-cyan-300, .text-blue-300 { color: #111 !important; }
+    .text-slate-400, .text-slate-500 { color: #666 !important; }
+    .sticky { position: static !important; }
+    .print-header { display: block !important; }
+    a { color: #111 !important; text-decoration: none !important; }
+    .badge-us, .badge-cn, .badge-pm { border: 1px solid #999 !important; background: #eee !important; color: #111 !important; }
+  }
+  .print-header { display: none; }
+  .sort-btn { cursor: pointer; user-select: none; }
+  .sort-btn:hover { color: #67e8f9; }
+  .sort-btn::after { content: ' ↕'; font-size: 8px; opacity: 0.4; }
+  .sort-btn.asc::after { content: ' ↑'; opacity: 1; }
+  .sort-btn.desc::after { content: ' ↓'; opacity: 1; }
+  .badge-us { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(239,68,68,0.15); color: #fca5a5; }
+  .badge-cn { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(251,191,36,0.15); color: #fcd34d; }
+  .badge-pm { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(99,102,241,0.15); color: #a5b4fc; }
+  .badge-sc { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(16,185,129,0.12); color: #6ee7b7; }
+  .badge-dk { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(139,92,246,0.12); color: #c4b5fd; }
+</style>
+
+<div class="print-header" style="padding: 20px 0 10px;">
+  <h1 style="font-size: 18px; font-weight: 700; color: #111;">VLGC Fleet Availability — Open Tonnage</h1>
+  <p style="font-size: 11px; color: #666; margin-top: 4px;">
+    Generated: <%= new Date().toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) %> · <%= vessels.length %> vessels
+  </p>
+  <p style="font-size: 9px; color: #999; margin-top: 2px;">US = US-trade OK · CN = Chinese-built · PM = Panamax · SC = Scrubber/DF · DK = Deck Tank</p>
+</div>
+
+<div class="flex items-center justify-between mb-6 no-print">
+  <div>
+    <h2 class="text-2xl font-bold text-white">Fleet Availability — Open Tonnage</h2>
+    <p class="text-slate-400 text-sm mt-1">
+      <%= vessels.length %> vessels with open positions · ETAs to loading ports
+    </p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <select id="filterController" onchange="filterTable()" class="input input-sm">
+      <option value="">All Controllers</option>
+      <% controllers.forEach(c => { %>
+        <option value="<%= c %>" <%= filter === c ? 'selected' : '' %>><%= c %></option>
+      <% }) %>
+    </select>
+    <select id="filterState" onchange="filterTable()" class="input input-sm">
+      <option value="">All States</option>
+      <option value="ballast">Ballast</option>
+      <option value="loaded">Loaded</option>
+    </select>
+    <select id="filterPmax" onchange="filterTable()" class="input input-sm">
+      <option value="">All Sizes</option>
+      <option value="1">Panamax Only</option>
+      <option value="0">Non-Panamax</option>
+    </select>
+    <select id="filterUS" onchange="filterTable()" class="input input-sm">
+      <option value="">US Trade: All</option>
+      <option value="1">US OK ✓</option>
+      <option value="0">US Restricted</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="Search vessel..." class="input input-sm w-36" oninput="filterTable()">
+    <a href="/availability/export" class="btn btn-sm" style="background: #0f766e; color: white; padding: 4px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: none;">
+      📊 Save Excel
+    </a>
+  </div>
+</div>
+
+<div class="card p-0 overflow-hidden">
+  <div class="overflow-x-auto max-h-[calc(100vh-200px)]">
+    <table class="data-table text-[11px]" id="availTable">
+      <thead>
+        <tr>
+          <th class="sticky left-0 z-20 bg-slate-900 w-8">#</th>
+          <th class="sticky left-8 z-20 bg-slate-900 min-w-[130px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
+          <th class="sort-btn" data-col="cbm" onclick="sortTable('cbm')">CBM</th>
+          <th class="sort-btn" data-col="blt" onclick="sortTable('blt')">BLT</th>
+          <th>Flags</th>
+          <th class="sort-btn" data-col="ctrl" onclick="sortTable('ctrl')">Controller</th>
+          <th class="sort-btn" data-col="state" onclick="sortTable('state')">State</th>
+          <th class="sort-btn" data-col="pos" onclick="sortTable('pos')">Position</th>
+          <th class="sort-btn" data-col="cape" onclick="sortTable('cape')">v Cape</th>
+          <th class="border-l border-emerald-800 text-emerald-300 sort-btn" data-col="from" onclick="sortTable('from')">Open From</th>
+          <th class="text-emerald-300 sort-btn" data-col="to" onclick="sortTable('to')">Open To</th>
+          <% destinations.forEach(d => { %>
+            <th class="border-l border-slate-700 text-center text-cyan-300 min-w-[80px] sort-btn" data-col="eta_<%= d.key %>" onclick="sortTable('eta_<%= d.key %>')">ETA<br><%= d.short_label %></th>
+          <% }) %>
+          <th class="border-l border-slate-700">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% vessels.forEach((v, i) => { %>
+        <tr data-controller="<%= v.controller || '' %>" data-state="<%= v.state || '' %>" data-name="<%= v.name %>"
+            data-pmax="<%= v.panamax ? '1' : '0' %>" data-us="<%= v.us_trade ? '1' : '0' %>"
+            data-sort-name="<%= v.name %>"
+            data-sort-cbm="<%= v.cbm || 0 %>"
+            data-sort-blt="<%= v.built_year || 0 %>"
+            data-sort-ctrl="<%= v.controller || '' %>"
+            data-sort-state="<%= v.state || '' %>"
+            data-sort-pos="<%= v.position || '' %>"
+            data-sort-cape="<%= v.laden_v_cape || '' %>"
+            data-sort-from="<%= v.open_from ? new Date(v.open_from).getTime() : 0 %>"
+            data-sort-to="<%= v.open_to ? new Date(v.open_to).getTime() : 0 %>"
+            <% destinations.forEach(d => { %>
+              data-sort-eta_<%= d.key %>="<%= v.etas[d.key] ? v.etas[d.key].eta1.getTime() : 99999999999999 %>"
+            <% }) %>
+        >
+          <td class="sticky left-0 bg-slate-900 text-slate-500 text-[10px]"><%= i + 1 %></td>
+          <td class="sticky left-8 bg-slate-900">
+            <a href="/vessel-intel/<%= v.kpler_vessel_id %>" class="text-white font-medium hover:text-cyan-300 transition-colors"><%= v.name %></a>
+            <% if (v.is_ethylene_capable) { %><span class="text-emerald-400 text-[9px] ml-0.5" title="Ethylene capable">⬡</span><% } %>
+          </td>
+          <td class="text-slate-300"><%= v.cbm ? v.cbm.toLocaleString() : '' %></td>
+          <td class="text-slate-400"><%= v.built_year || '' %></td>
+          <td class="whitespace-nowrap">
+            <% if (v.us_trade) { %><span class="badge-us" title="US Trade OK">US</span> <% } %>
+            <% if (v.chinese_built) { %><span class="badge-cn" title="Chinese Built">CN</span> <% } %>
+            <% if (v.panamax) { %><span class="badge-pm" title="Panamax">PM</span> <% } %>
+            <% if (v.scrubber_df) { %><span class="badge-sc" title="<%= v.scrubber_df %>">SC</span> <% } %>
+            <% if (v.deck_tank) { %><span class="badge-dk" title="Deck Tank">DK</span> <% } %>
+          </td>
+          <td class="text-blue-300 text-[10px]"><%= v.controller || '' %></td>
+          <td>
+            <% if (v.state) { %>
+              <span class="px-1 py-0.5 rounded text-[9px] font-medium
+                <%= v.state === 'loaded' ? 'bg-emerald-900/50 text-emerald-300' : 
+                   v.state === 'ballast' ? 'bg-blue-900/50 text-blue-300' : 
+                   'bg-slate-700 text-slate-300' %>">
+                <%= v.state %>
+              </span>
+            <% } %>
+          </td>
+          <td class="text-white text-[10px] font-medium whitespace-nowrap"><%= v.position %></td>
+          <td class="text-[10px] text-amber-300"><%= v.laden_v_cape || '' %></td>
+          <td class="border-l border-emerald-800/30 text-emerald-300 font-medium whitespace-nowrap">
+            <%= v.open_from ? new Date(v.open_from).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '' %>
+          </td>
+          <td class="text-emerald-300/70 whitespace-nowrap">
+            <%= v.open_to ? new Date(v.open_to).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '' %>
+          </td>
+          <% destinations.forEach(d => { %>
+            <td class="border-l border-slate-800 text-center whitespace-nowrap">
+              <% if (v.etas[d.key]) { 
+                const e = v.etas[d.key];
+                const d1 = e.eta1.getDate().toString().padStart(2,'0');
+                const d2 = e.eta2.getDate().toString().padStart(2,'0');
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                const mon = months[e.eta2.getMonth()];
+                const display = d1 === d2 ? d1 + ' ' + mon : d1 + '-' + d2 + ' ' + mon;
+              %>
+                <span class="text-slate-200" title="<%= Math.round(e.days) %> transit days"><%= display %></span>
+              <% } else { %>
+                <span class="text-slate-700">—</span>
+              <% } %>
+            </td>
+          <% }) %>
+          <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[200px] truncate" title="<%= v.notes || '' %>">
+            <%= v.notes || '' %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let currentSort = { col: null, dir: null };
+
+function sortTable(col) {
+  const tbody = document.querySelector('#availTable tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  
+  if (currentSort.col === col) {
+    currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort.col = col;
+    currentSort.dir = 'asc';
+  }
+  
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.classList.remove('asc', 'desc');
+    if (btn.dataset.col === col) btn.classList.add(currentSort.dir);
+  });
+  
+  const isNumeric = ['cbm', 'blt', 'from', 'to'].includes(col) || col.startsWith('eta_');
+  
+  rows.sort((a, b) => {
+    let va = a.getAttribute('data-sort-' + col) || '';
+    let vb = b.getAttribute('data-sort-' + col) || '';
+    
+    if (isNumeric) {
+      va = parseFloat(va) || 0;
+      vb = parseFloat(vb) || 0;
+    } else {
+      va = va.toLowerCase();
+      vb = vb.toLowerCase();
+    }
+    
+    let result = va < vb ? -1 : va > vb ? 1 : 0;
+    return currentSort.dir === 'desc' ? -result : result;
+  });
+  
+  rows.forEach(row => tbody.appendChild(row));
+  renumber();
+}
+
+function filterTable() {
+  const ctrl = document.getElementById('filterController').value.toLowerCase();
+  const state = document.getElementById('filterState').value.toLowerCase();
+  const pmax = document.getElementById('filterPmax').value;
+  const us = document.getElementById('filterUS').value;
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  
+  document.querySelectorAll('#availTable tbody tr').forEach(row => {
+    const rc = (row.dataset.controller || '').toLowerCase();
+    const rs = (row.dataset.state || '').toLowerCase();
+    const rn = (row.dataset.name || '').toLowerCase();
+    const rp = row.dataset.pmax || '';
+    const ru = row.dataset.us || '';
+    
+    const show = (!ctrl || rc.includes(ctrl)) &&
+                 (!state || rs === state) &&
+                 (!pmax || rp === pmax) &&
+                 (!us || ru === us) &&
+                 (!search || rn.includes(search));
+    row.style.display = show ? '' : 'none';
+  });
+  renumber();
+}
+
+function renumber() {
+  let n = 0;
+  document.querySelectorAll('#availTable tbody tr').forEach(row => {
+    if (row.style.display !== 'none') {
+      n++;
+      row.children[0].textContent = n;
+    }
+  });
+}
+</script>

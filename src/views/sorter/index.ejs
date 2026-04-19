@@ -1,0 +1,166 @@
+<% var pageTitle = 'Sorter' %>
+
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <h2 class="text-2xl font-bold text-white">Sorter</h2>
+    <p class="text-slate-400 text-sm mt-1">
+      Showing <strong class="text-white"><%= entries.length %></strong> of <%= totalCount %> vessels
+      <% if (entries.length !== totalCount) { %>
+        <span class="text-amber-400 ml-1">(filtered)</span>
+      <% } %>
+    </p>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+  <form method="GET" action="/sorter" class="flex flex-wrap items-end gap-3">
+    <!-- Date Range -->
+    <div>
+      <label class="block text-[10px] text-slate-500 mb-1">Open From</label>
+      <input type="date" name="from" value="<%= filter.from %>" class="input input-sm">
+    </div>
+    <div>
+      <label class="block text-[10px] text-slate-500 mb-1">Open To</label>
+      <input type="date" name="to" value="<%= filter.to %>" class="input input-sm">
+    </div>
+
+    <div class="h-8 w-px bg-slate-700"></div>
+
+    <!-- State -->
+    <div>
+      <label class="block text-[10px] text-slate-500 mb-1">State</label>
+      <select name="state" class="input input-sm">
+        <option value="">All</option>
+        <% states.forEach(s => { %>
+          <option value="<%= s %>" <%= filter.state === s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <!-- Controller -->
+    <div>
+      <label class="block text-[10px] text-slate-500 mb-1">Controller</label>
+      <select name="controller" class="input input-sm">
+        <option value="">All</option>
+        <% controllers.forEach(c => { %>
+          <option value="<%= c %>" <%= filter.controller === c ? 'selected' : '' %>><%= c %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <!-- Region -->
+    <div>
+      <label class="block text-[10px] text-slate-500 mb-1">Region</label>
+      <input type="text" name="region" value="<%= filter.region %>" placeholder="e.g. AG, Japan" class="input input-sm w-24">
+    </div>
+
+    <!-- Flag -->
+    <div>
+      <label class="block text-[10px] text-slate-500 mb-1">Flag</label>
+      <select name="flag" class="input input-sm">
+        <option value="">All</option>
+        <% flags.forEach(f => { %>
+          <option value="<%= f %>" <%= filter.flag === f ? 'selected' : '' %>><%= f %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="h-8 w-px bg-slate-700"></div>
+
+    <!-- Quick toggles -->
+    <label class="flex items-center gap-1 text-xs text-slate-400 cursor-pointer">
+      <input type="checkbox" name="open_only" value="1" <%= filter.open_only === '1' ? 'checked' : '' %> class="rounded">
+      Open only
+    </label>
+    <label class="flex items-center gap-1 text-xs text-slate-400 cursor-pointer">
+      <input type="checkbox" name="us_trade" value="1" <%= filter.us_trade === '1' ? 'checked' : '' %> class="rounded">
+      US Trade
+    </label>
+    <label class="flex items-center gap-1 text-xs text-slate-400 cursor-pointer">
+      <input type="checkbox" name="no_chinese" value="1" <%= filter.no_chinese === '1' ? 'checked' : '' %> class="rounded">
+      No Chinese
+    </label>
+
+    <div class="flex gap-2 ml-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      <% if (Object.values(filter).some(v => v)) { %>
+        <a href="/sorter" class="btn btn-sm bg-slate-700 text-white hover:bg-slate-600">Clear</a>
+      <% } %>
+    </div>
+  </form>
+</div>
+
+<!-- Table -->
+<div class="card p-0 overflow-hidden">
+  <div class="overflow-x-auto max-h-[calc(100vh-280px)]">
+    <table class="data-table" id="sorterTable">
+      <thead>
+        <tr>
+          <th class="w-6">#</th>
+          <th>State</th>
+          <th>CN</th>
+          <th>US</th>
+          <th>PMX</th>
+          <th>Vessel</th>
+          <th>BLT</th>
+          <th>CBM</th>
+          <th>Flag</th>
+          <th>Controller</th>
+          <th>Position</th>
+          <th>Open</th>
+          <% destinations.forEach(d => { %>
+            <th class="text-center bg-slate-900"><%= d.label %></th>
+          <% }) %>
+          <th>Notes</th>
+          <th>Voyage</th>
+          <th>Next Loading</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% entries.forEach((e, i) => { %>
+          <tr class="<%= e.highlights.position || '' %> <%= e.kpler_state === 'loaded' ? 'opacity-40' : '' %>">
+            <td class="text-slate-500"><%= i + 1 %></td>
+            <td>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-medium
+                <%= e.kpler_state === 'loaded' ? 'bg-emerald-900/50 text-emerald-300' : 
+                   e.kpler_state === 'ballast' ? 'bg-blue-900/50 text-blue-300' : 
+                   'bg-slate-700 text-slate-300' %>">
+                <%= e.kpler_state || '' %>
+              </span>
+            </td>
+            <td class="text-center"><%= e.chinese_built ? '●' : '' %></td>
+            <td class="text-center"><%= e.us_trade ? 'US' : '' %></td>
+            <td class="text-center text-[10px]"><%= e.highlights.panamax ? 'PMX' : '' %></td>
+            <td class="font-medium text-white whitespace-nowrap">
+              <% if (e.kpler_vessel_id) { %>
+                <a href="/vessel-intel/<%= e.kpler_vessel_id %>" class="hover:text-cyan-300 transition-colors"><%= e.vessel_name %></a>
+              <% } else { %>
+                <%= e.vessel_name %>
+              <% } %>
+            </td>
+            <td class="<%= e.highlights.built || '' %>"><%= e.built || e.kpler_built_year || '' %></td>
+            <td><%= (e.kpler_cbm || e.cbm) ? Math.round(e.kpler_cbm || e.cbm).toLocaleString() : '' %></td>
+            <td class="text-[10px] text-slate-400"><%= e.kpler_flag || '' %></td>
+            <td class="<%= e.highlights.owner || '' %>"><%= e.controller || '' %></td>
+            <td><%= e.position || '' %></td>
+            <td class="text-cyan-300 whitespace-nowrap">
+              <% if (e.open_from) { %>
+                <%= new Date(e.open_from).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) %>
+                <% if (e.open_to) { %>- <%= new Date(e.open_to).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) %><% } %>
+              <% } %>
+            </td>
+            <% destinations.forEach(d => { %>
+              <td class="text-center text-[10px] <%= e.etas && e.etas[d.key] ? 'text-cyan-300' : 'text-slate-600' %>">
+                <%= e.etas && e.etas[d.key] ? e.etas[d.key].formatted : '—' %>
+              </td>
+            <% }) %>
+            <td class="text-slate-400 max-w-[120px] truncate" title="<%= e.notes || '' %>"><%= e.notes || '' %></td>
+            <td class="text-slate-400 max-w-[140px] truncate" title="<%= e.current_voyage || '' %>"><%= e.current_voyage || '' %></td>
+            <td class="text-slate-400 max-w-[120px] truncate" title="<%= e.next_loading || '' %>"><%= e.next_loading || '' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,252 @@
+<% var pageTitle = 'Settings' %>
+<div class="mb-6"><h2 class="text-2xl font-bold text-white">Settings</h2></div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- App Settings -->
+  <div class="card">
+    <h3 class="text-sm font-semibold text-white mb-4">Application Settings</h3>
+    <form action="/settings" method="POST" class="space-y-3">
+      <% settings.filter(s => !s.setting_key.startsWith('kpler_')).forEach(s => { %>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1"><%= s.description || s.setting_key %></label>
+          <input type="text" name="<%= s.setting_key %>" value="<%= s.setting_value %>" class="input input-sm w-full">
+        </div>
+      <% }) %>
+      <button type="submit" class="btn btn-sm btn-primary">Save Settings</button>
+    </form>
+  </div>
+
+  <!-- User Management -->
+  <div class="card">
+    <h3 class="text-sm font-semibold text-white mb-4">Users</h3>
+    <div class="space-y-2 mb-4">
+      <% users.forEach(u => { %>
+        <div class="flex items-center justify-between bg-slate-900 rounded-lg p-3">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white"><%= u.initials || u.username.substring(0,2).toUpperCase() %></div>
+            <div>
+              <div class="text-sm font-medium text-white"><%= u.display_name || u.username %></div>
+              <div class="text-[10px] text-slate-500"><%= u.role %> · @<%= u.username %></div>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <h4 class="text-xs font-semibold text-slate-400 mb-2 mt-4">Add New User</h4>
+    <form action="/settings/users" method="POST" class="space-y-2">
+      <div class="grid grid-cols-2 gap-2">
+        <input type="text" name="username" required placeholder="Username" class="input input-sm">
+        <input type="text" name="display_name" required placeholder="Display Name" class="input input-sm">
+        <input type="text" name="initials" required maxlength="3" placeholder="Initials" class="input input-sm">
+        <select name="role" class="input input-sm">
+          <option value="broker">Broker</option>
+          <option value="admin">Admin</option>
+          <option value="superadmin">Superadmin</option>
+        </select>
+      </div>
+      <input type="password" name="password" required minlength="4" placeholder="Password" class="input input-sm w-full">
+      <button type="submit" class="btn btn-sm btn-success w-full">Create User</button>
+    </form>
+  </div>
+</div>
+
+<!-- Kpler API Configuration -->
+<div class="card mt-6">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h3 class="text-sm font-semibold text-white">Kpler API Integration</h3>
+      <p class="text-[10px] text-slate-500 mt-0.5">Token auto-refreshes every 4 min · Vessels auto-sync every 6 hours</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="cronStatus" class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400">checking...</span>
+      <button onclick="testKplerApi()" class="btn btn-sm bg-violet-600 text-white hover:bg-violet-700" id="btnKplerTest">Test API</button>
+      <button onclick="enrichVessels()" class="btn btn-sm bg-cyan-600 text-white hover:bg-cyan-700" id="btnEnrich">Enrich Data</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- Refresh Token -->
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">Refresh Token <span class="text-slate-600">(paste once, auto-rotates)</span></label>
+      <div class="flex gap-2">
+        <input type="text" id="refreshTokenInput" placeholder="v1.NaVCAz-ZAf05..." class="input input-sm flex-1 font-mono text-[10px]"
+          value="<%= settings.find(s => s.setting_key === 'kpler_refresh_token')?.setting_value || '' %>">
+        <button onclick="saveKplerToken('refresh')" class="btn btn-sm bg-emerald-600 text-white hover:bg-emerald-700">Save</button>
+      </div>
+    </div>
+
+    <!-- Access Token (fallback) -->
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">Access Token <span class="text-slate-600">(fallback, expires ~5 min)</span></label>
+      <div class="flex gap-2">
+        <input type="text" id="accessTokenInput" placeholder="eyJhbGciOiJ..." class="input input-sm flex-1 font-mono text-[10px]">
+        <button onclick="saveKplerToken('access')" class="btn btn-sm bg-amber-600 text-white hover:bg-amber-700">Set</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="mt-4 flex items-center gap-4 text-xs text-slate-400">
+    <% var lastRefresh = settings.find(s => s.setting_key === 'kpler_token_last_refresh')?.setting_value; %>
+    <% var lastSync = settings.find(s => s.setting_key === 'kpler_last_sync')?.setting_value; %>
+    <% var mapped = settings.find(s => s.setting_key === 'kpler_last_sync'); %>
+    <% if (lastRefresh) { %>
+      <span>Last refresh: <strong class="text-emerald-300"><%= new Date(lastRefresh).toLocaleString() %></strong></span>
+    <% } %>
+    <% if (lastSync) { %>
+      <span>Last sync: <strong class="text-cyan-300"><%= new Date(lastSync).toLocaleString() %></strong></span>
+    <% } %>
+  </div>
+
+  <!-- Vessel ID Mapping -->
+  <div class="mt-4 border-t border-slate-700 pt-4">
+    <h4 class="text-xs font-semibold text-slate-400 mb-2">Vessel ID Mapping</h4>
+    <p class="text-[10px] text-slate-500 mb-2">
+      Paste JSON: <code>[{"name":"Al Maryah","kpler_vessel_id":79531}]</code> or <code>[{"imo":"9393682","kpler_vessel_id":79531}]</code>
+    </p>
+    <div class="flex gap-2">
+      <textarea id="mapJson" rows="3" class="input text-xs flex-1 font-mono" placeholder='[{"name":"Al Maryah","kpler_vessel_id":79531}]'></textarea>
+      <div class="flex flex-col gap-2">
+        <button onclick="bulkMap()" class="btn btn-sm btn-success">Upload</button>
+        <button onclick="fetchUnmapped()" class="btn btn-sm bg-slate-600 text-white">Unmapped</button>
+      </div>
+    </div>
+    <div id="mapResult" class="mt-2 text-xs"></div>
+  </div>
+</div>
+
+<!-- OpenAI API Configuration -->
+<div class="card mt-6">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h3 class="text-sm font-semibold text-white">OpenAI API</h3>
+      <p class="text-[10px] text-slate-500 mt-0.5">Used for AI position analysis in Tracker (gpt-4o-mini)</p>
+    </div>
+    <span id="aiStatus" class="text-[10px] px-2 py-0.5 rounded <%= settings.find(s => s.setting_key === 'openai_api_key')?.setting_value ? 'bg-emerald-900/50 text-emerald-300' : 'bg-slate-700 text-slate-400' %>">
+      <%= settings.find(s => s.setting_key === 'openai_api_key')?.setting_value ? '● Configured' : '○ Not set' %>
+    </span>
+  </div>
+  <div>
+    <label class="block text-xs text-slate-400 mb-1">API Key <span class="text-slate-600">(sk-...)</span></label>
+    <div class="flex gap-2">
+      <input type="password" id="openaiKeyInput" placeholder="sk-..." class="input input-sm flex-1 font-mono text-[10px]"
+        value="<%= settings.find(s => s.setting_key === 'openai_api_key')?.setting_value || '' %>">
+      <button onclick="saveOpenAIKey()" class="btn btn-sm bg-emerald-600 text-white hover:bg-emerald-700">Save</button>
+      <button onclick="testOpenAI()" class="btn btn-sm bg-violet-600 text-white hover:bg-violet-700" id="btnAiTest">Test</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function testKplerApi() {
+  const btn = document.getElementById('btnKplerTest');
+  const status = document.getElementById('cronStatus');
+  btn.textContent = 'Testing...';
+  try {
+    const r = await fetch('/kpler/api/test', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      btn.textContent = '✓ Connected';
+      btn.className = 'btn btn-sm bg-emerald-600 text-white';
+      status.textContent = '● Active';
+      status.className = 'text-[10px] px-2 py-0.5 rounded bg-emerald-900/50 text-emerald-300';
+    } else {
+      btn.textContent = '✕ Failed';
+      btn.className = 'btn btn-sm bg-red-600 text-white';
+      status.textContent = '● Token expired';
+      status.className = 'text-[10px] px-2 py-0.5 rounded bg-red-900/50 text-red-300';
+    }
+  } catch(e) {
+    btn.textContent = '✕ Error';
+    btn.className = 'btn btn-sm bg-red-600 text-white';
+  }
+}
+
+async function saveKplerToken(type) {
+  const body = {};
+  if (type === 'refresh') {
+    body.refresh_token = document.getElementById('refreshTokenInput').value.trim();
+    if (!body.refresh_token) return;
+  } else {
+    body.access_token = document.getElementById('accessTokenInput').value.trim();
+    if (!body.access_token) return;
+  }
+  const r = await fetch('/kpler/api/set-token', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (d.ok) {
+    if (type === 'access') document.getElementById('accessTokenInput').value = '';
+    testKplerApi();
+  }
+}
+
+async function bulkMap() {
+  const json = document.getElementById('mapJson').value.trim();
+  try {
+    const mappings = JSON.parse(json);
+    const r = await fetch('/kpler/api/bulk-map', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ mappings }) });
+    const d = await r.json();
+    document.getElementById('mapResult').innerHTML = `<span class="text-emerald-400">✓ Mapped ${d.mapped} of ${d.total} vessels</span>`;
+  } catch(e) {
+    document.getElementById('mapResult').innerHTML = `<span class="text-red-400">✕ ${e.message}</span>`;
+  }
+}
+
+async function fetchUnmapped() {
+  const r = await fetch('/kpler/api/unmapped');
+  const vessels = await r.json();
+  document.getElementById('mapResult').innerHTML = `<div class="text-slate-400">${vessels.length} unmapped vessels:</div>
+    <div class="max-h-32 overflow-y-auto text-xs mt-1">
+      ${vessels.map(v => `<div class="text-white">${v.name} <span class="text-slate-500">(IMO: ${v.imo || 'N/A'})</span></div>`).join('')}
+    </div>`;
+}
+
+// Check status on load
+testKplerApi();
+
+async function enrichVessels() {
+  const btn = document.getElementById('btnEnrich');
+  btn.disabled = true;
+  btn.textContent = 'Enriching... (≈2 min)';
+  try {
+    const r = await fetch('/kpler/api/enrich', { method: 'POST' });
+    const d = await r.json();
+    btn.textContent = `✓ ${d.enriched} enriched`;
+    btn.className = 'btn btn-sm bg-emerald-600 text-white';
+    setTimeout(() => {
+      btn.textContent = 'Enrich Data';
+      btn.className = 'btn btn-sm bg-cyan-600 text-white hover:bg-cyan-700';
+      btn.disabled = false;
+    }, 3000);
+  } catch(e) {
+    btn.textContent = '✕ Failed';
+    btn.className = 'btn btn-sm bg-red-600 text-white';
+    btn.disabled = false;
+  }
+}
+
+async function saveOpenAIKey() {
+  const key = document.getElementById('openaiKeyInput').value.trim();
+  const r = await fetch('/settings/api/openai-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ key }) });
+  const d = await r.json();
+  if (d.ok) {
+    const status = document.getElementById('aiStatus');
+    status.textContent = key ? '● Configured' : '○ Not set';
+    status.className = 'text-[10px] px-2 py-0.5 rounded ' + (key ? 'bg-emerald-900/50 text-emerald-300' : 'bg-slate-700 text-slate-400');
+  }
+}
+
+async function testOpenAI() {
+  const btn = document.getElementById('btnAiTest');
+  btn.textContent = 'Testing...';
+  try {
+    const r = await fetch('/settings/api/openai-test', { method: 'POST' });
+    const d = await r.json();
+    btn.textContent = d.ok ? '✓ Working' : '✕ ' + d.error;
+    btn.className = 'btn btn-sm ' + (d.ok ? 'bg-emerald-600' : 'bg-red-600') + ' text-white';
+    setTimeout(() => { btn.textContent = 'Test'; btn.className = 'btn btn-sm bg-violet-600 text-white hover:bg-violet-700'; }, 3000);
+  } catch(e) {
+    btn.textContent = '✕ Error';
+  }
+}
+</script>

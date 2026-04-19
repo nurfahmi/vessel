@@ -1,0 +1,50 @@
+<% var pageTitle = 'AG Sorter' %>
+<div class="flex items-center justify-between mb-4">
+  <h2 class="text-2xl font-bold text-white">AG Sorter — <%= year %></h2>
+  <div class="flex gap-2">
+    <a href="/ag?year=<%= year-1 %>" class="btn btn-sm bg-slate-700 text-white">← <%= year-1 %></a>
+    <a href="/ag?year=<%= year+1 %>" class="btn btn-sm bg-slate-700 text-white"><%= year+1 %> →</a>
+  </div>
+</div>
+<details class="card mb-4">
+  <summary class="cursor-pointer text-sm font-medium text-slate-300">+ Add Fixture</summary>
+  <form action="/ag" method="POST" class="mt-4 flex items-end gap-3">
+    <div><label class="block text-xs text-slate-400 mb-1">Laycan</label><input type="date" name="laycan" required class="input input-sm"></div>
+    <div class="flex-1"><label class="block text-xs text-slate-400 mb-1">Charterer</label><input type="text" name="charterer" required class="input input-sm w-full"></div>
+    <div><label class="block text-xs text-slate-400 mb-1">Port</label><input type="text" name="port" class="input input-sm" placeholder="AG"></div>
+    <div class="flex-1"><label class="block text-xs text-slate-400 mb-1">Vessel</label><input type="text" name="vessel" class="input input-sm w-full"></div>
+    <div><label class="block text-xs text-slate-400 mb-1">Rate</label><input type="text" name="rate" class="input input-sm w-20"></div>
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">Region</label>
+      <select name="region" class="input input-sm">
+        <% regions.forEach(r => { %><option value="<%= r.key %>"><%= r.label %></option><% }) %>
+      </select>
+    </div>
+    <input type="hidden" name="year" value="<%= year %>">
+    <button type="submit" class="btn btn-sm btn-success">Add</button>
+  </form>
+</details>
+
+<% regions.forEach(region => { %>
+  <% const items = grouped[region.key] || []; %>
+  <% if (items.length > 0) { %>
+  <div class="card mb-4">
+    <h3 class="text-sm font-semibold text-blue-400 mb-3"><%= region.label %> (<%= items.length %>)</h3>
+    <table class="data-table">
+      <thead><tr><th>Laycan</th><th>Charterer</th><th>Port</th><th>Vessel</th><th>Rate</th><th class="w-12"></th></tr></thead>
+      <tbody>
+        <% items.forEach(f => { %>
+          <tr>
+            <td class="text-cyan-300"><%= f.laycan ? new Date(f.laycan).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '' %></td>
+            <td class="font-medium text-white"><%= f.charterer %></td>
+            <td><%= f.port || '' %></td>
+            <td class="text-slate-300"><%= f.vessel || '' %></td>
+            <td class="text-emerald-300"><%= f.rate || '' %></td>
+            <td><button onclick="if(confirm('Delete?'))fetch('/ag/<%= f.id %>',{method:'DELETE'}).then(()=>location.reload())" class="text-red-400 hover:text-red-300 text-xs">✕</button></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+<% }) %>

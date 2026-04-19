@@ -1,0 +1,469 @@
+<% var pageTitle = vessel ? vessel.name + ' — Intel' : 'Vessel Intel' %>
+
+<% if (vessel) { %>
+<div class="mb-4">
+  <a href="javascript:history.back()" class="text-slate-400 text-sm hover:text-white">← Back</a>
+</div>
+
+<!-- Header -->
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h2 class="text-3xl font-bold text-white"><%= vessel.name %></h2>
+    <div class="flex items-center gap-3 mt-2 text-sm text-slate-400">
+      <span class="px-2 py-0.5 rounded text-xs font-medium
+        <%= vessel.state === 'loaded' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-blue-900/50 text-blue-300' %>">
+        <%= vessel.state %>
+      </span>
+      <span><%= vessel.type %></span>
+      <span>IMO: <strong class="text-white"><%= vessel.imo %></strong></span>
+      <span>MMSI: <%= vessel.mmsi %></span>
+      <% if (vessel.callSign) { %><span>Call: <strong class="text-white"><%= vessel.callSign %></strong></span><% } %>
+      <span>Flag: <strong class="text-white"><%= vessel.flag %></strong></span>
+      <% if (vessel.shipClass) { %><span>Class: <strong class="text-white"><%= vessel.shipClass %></strong></span><% } %>
+    </div>
+  </div>
+  <div class="text-right text-xs text-slate-500">
+    <div>Status: <span class="<%= vessel.status === 'Active' ? 'text-emerald-400' : 'text-amber-400' %>"><%= vessel.status %></span></div>
+    <% if (vessel.positionTime) { %>
+    <div>Last signal: <%= new Date(vessel.positionTime).toLocaleString() %></div>
+    <% } %>
+    <% if (vessel.isOpen) { %><div class="text-emerald-400 font-medium mt-1">● OPEN</div><% } %>
+  </div>
+</div>
+
+<!-- Insights Banner -->
+<% if (insights.length > 0) { %>
+<div class="card mb-6 border border-slate-700">
+  <h3 class="text-sm font-semibold text-amber-300 mb-3">📊 Analysis</h3>
+  <div class="space-y-2">
+    <% insights.forEach(i => { %>
+      <div class="flex items-start gap-2 text-sm">
+        <span class="mt-0.5 text-xs">
+          <%= i.type === 'warning' ? '⚠️' : i.type === 'success' ? '✅' : 'ℹ️' %>
+        </span>
+        <span class="<%= i.type === 'warning' ? 'text-amber-300' : i.type === 'success' ? 'text-emerald-300' : 'text-slate-300' %>">
+          <%= i.text %>
+        </span>
+      </div>
+    <% }) %>
+  </div>
+</div>
+<% } %>
+
+<!-- Row 1: Position / Cargo / Ownership -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+
+  <!-- Current Position -->
+  <div class="card">
+    <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3">📍 Current Position</h3>
+    <div class="space-y-2 text-sm">
+      <% if (vessel.lat && vessel.lon) { %>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Coordinates</span>
+          <span class="text-white font-mono text-xs"><%= vessel.lat.toFixed(4) %>, <%= vessel.lon.toFixed(4) %></span>
+        </div>
+      <% } %>
+      <% if (vessel.aisDestination) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">AIS Dest</span>
+        <span class="text-cyan-300 font-medium"><%= vessel.aisDestination %></span>
+      </div>
+      <% } %>
+      <% if (vessel.aisEta) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">AIS ETA</span>
+        <span class="text-white"><%= new Date(vessel.aisEta).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) %></span>
+      </div>
+      <% } %>
+      <% if (vessel.nextDestName) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Next Port</span>
+        <span class="text-white"><%= vessel.nextDestName %><%= vessel.nextDestCountry ? ', ' + vessel.nextDestCountry : '' %></span>
+      </div>
+      <% } %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Speed</span>
+        <span class="<%= vessel.speed < 1 ? 'text-amber-300' : 'text-white' %>"><%= vessel.speed %> kn</span>
+      </div>
+      <% if (vessel.heading !== undefined) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Heading</span>
+        <span class="text-white"><%= vessel.heading %>°</span>
+      </div>
+      <% } %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Draught</span>
+        <span class="text-white"><%= vessel.draught %> m</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cargo & State -->
+  <div class="card">
+    <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3">🛢️ Cargo & State</h3>
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between">
+        <span class="text-slate-400">State</span>
+        <span class="font-medium <%= vessel.state === 'loaded' ? 'text-emerald-300' : 'text-blue-300' %>"><%= vessel.state.toUpperCase() %></span>
+      </div>
+      <% if (vessel.cbm && vessel.currentVolume !== undefined) { %>
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-slate-400">Cargo Onboard</span>
+          <span class="text-white"><%= vessel.currentVolume ? vessel.currentVolume.toLocaleString() : '0' %> / <%= vessel.cbm.toLocaleString() %> m³</span>
+        </div>
+        <div class="w-full bg-slate-700 rounded-full h-2">
+          <div class="<%= vessel.loaded ? 'bg-emerald-500' : 'bg-blue-500' %> h-2 rounded-full transition-all" style="width:<%= Math.min(100, Math.round((vessel.currentVolume || 0) / vessel.cbm * 100)) %>%"></div>
+        </div>
+        <div class="text-right text-[10px] text-slate-500 mt-0.5"><%= Math.round((vessel.currentVolume || 0) / vessel.cbm * 100) %>% full</div>
+      </div>
+      <% } else { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Capacity</span>
+        <span class="text-white font-medium"><%= vessel.cbm ? vessel.cbm.toLocaleString() + ' m³' : '—' %></span>
+      </div>
+      <% } %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Cargo Type</span>
+        <span class="text-white"><%= vessel.cargoType || '—' %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Tanks</span>
+        <span class="text-white"><%= vessel.numTanks || '—' %></span>
+      </div>
+      <% if (vessel.cargoProducts.length) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Products</span>
+        <span class="text-white"><%= vessel.cargoProducts.join(', ') %></span>
+      </div>
+      <% } %>
+      <% if (vessel.confirmedGrades && vessel.confirmedGrades.length) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Confirmed Grades</span>
+        <span class="text-cyan-300"><%= vessel.confirmedGrades.join(', ') %></span>
+      </div>
+      <% } %>
+      <% if (vessel.partialCargo) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Partial Cargo</span>
+        <span class="text-amber-300">⚠ Yes</span>
+      </div>
+      <% } %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Availability</span>
+        <span class="<%= vessel.vesselAvailability === 'Potentially Open' ? 'text-emerald-300' : 'text-slate-300' %>"><%= vessel.vesselAvailability || '—' %></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ownership & Control -->
+  <div class="card">
+    <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3">🧑‍💼 Ownership & Control</h3>
+    <div class="space-y-2 text-sm">
+      <% if (vessel.controller) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Controller</span>
+        <span class="text-blue-300 font-medium"><%= vessel.controller %><% if (vessel.controllerCountry) { %> <span class="text-slate-500 text-xs">(<%= vessel.controllerCountry %>)</span><% } %></span>
+      </div>
+      <% } %>
+      <% if (vessel.owner) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Owner</span>
+        <span class="text-white"><%= vessel.owner %><% if (vessel.ownerCountry) { %> <span class="text-slate-500 text-xs">(<%= vessel.ownerCountry %>)</span><% } %></span>
+      </div>
+      <% } %>
+      <% if (vessel.beneficialOwner) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Beneficial Owner</span>
+        <span class="text-white"><%= vessel.beneficialOwner %></span>
+      </div>
+      <% } %>
+      <% if (vessel.manager) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Manager</span>
+        <span class="text-white"><%= vessel.manager %></span>
+      </div>
+      <% } %>
+      <% if (vessel.commercialManager) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Commercial Mgr</span>
+        <span class="text-white"><%= vessel.commercialManager %></span>
+      </div>
+      <% } %>
+      <% if (vessel.operator) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Operator</span>
+        <span class="text-white"><%= vessel.operator %></span>
+      </div>
+      <% } %>
+      <% if (vessel.thirdPartyOperator) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">3rd Party Operator</span>
+        <span class="text-white"><%= vessel.thirdPartyOperator %></span>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Row 2: Technical / Last Port Call / Activity -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+
+  <!-- Technical Specs -->
+  <div class="card">
+    <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3">⚙️ Technical Specs</h3>
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between">
+        <span class="text-slate-400">Built</span>
+        <span class="text-white"><%= vessel.builtMonth ? vessel.builtMonth + '/' : '' %><%= vessel.builtYear || '—' %> <span class="text-slate-500"><%= vessel.builtCountry || '' %></span></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Age</span>
+        <span class="<%= vessel.age > 20 ? 'text-red-400' : vessel.age > 15 ? 'text-amber-400' : 'text-emerald-400' %>"><%= vessel.age %> years</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Deadweight</span>
+        <span class="text-white"><%= vessel.deadweight ? vessel.deadweight.toLocaleString() + ' t' : '—' %></span>
+      </div>
+      <% if (vessel.grossTonnage) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Gross Tonnage</span>
+        <span class="text-white"><%= vessel.grossTonnage.toLocaleString() %></span>
+      </div>
+      <% } %>
+      <% if (vessel.beam) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Beam</span>
+        <span class="text-white"><%= vessel.beam %> m</span>
+      </div>
+      <% } %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Max Speed</span>
+        <span class="text-white"><%= vessel.maxSpeed || '—' %> kn</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Horsepower</span>
+        <span class="text-white"><%= vessel.horsepower ? vessel.horsepower.toLocaleString() + ' HP' : '—' %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Ethylene</span>
+        <span class="<%= vessel.isEthylene ? 'text-emerald-400' : 'text-slate-500' %>"><%= vessel.isEthylene ? '✓ Capable' : '✗ No' %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Builder</span>
+        <span class="text-slate-300 text-xs"><%= vessel.builderFull || vessel.builder || '—' %></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Last Port Call -->
+  <div class="card">
+    <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3">🚢 Last Port Call</h3>
+    <div class="space-y-2 text-sm">
+      <% if (vessel.portName) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Port</span>
+        <span class="text-white font-medium"><%= vessel.portName %></span>
+      </div>
+      <% } %>
+      <% if (vessel.country) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Country</span>
+        <span class="text-white"><%= vessel.country %></span>
+      </div>
+      <% } %>
+      <% if (vessel.portCallOperation) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Operation</span>
+        <span class="<%= vessel.portCallOperation === 'load' ? 'text-emerald-300' : vessel.portCallOperation === 'discharge' ? 'text-amber-300' : 'text-white' %>"><%= vessel.portCallOperation.charAt(0).toUpperCase() + vessel.portCallOperation.slice(1) %></span>
+      </div>
+      <% } %>
+      <% if (vessel.arrival) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Arrival</span>
+        <span class="text-white"><%= new Date(vessel.arrival).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) %></span>
+      </div>
+      <% } %>
+      <% if (vessel.departure) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Est. Departure</span>
+        <span class="text-cyan-300"><%= new Date(vessel.departure).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) %></span>
+      </div>
+      <% } %>
+      <% if (vessel.flowVolume) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Flow Volume</span>
+        <span class="<%= vessel.flowVolume > 0 ? 'text-emerald-300' : 'text-amber-300' %>"><%= vessel.flowVolume > 0 ? '+' : '' %><%= vessel.flowVolume.toLocaleString() %> m³</span>
+      </div>
+      <% } %>
+      <% if (vessel.flowMass) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Flow Mass</span>
+        <span class="text-white"><%= vessel.flowMass.toLocaleString() %> t</span>
+      </div>
+      <% } %>
+      <% if (vessel.isSTS) { %>
+      <div class="mt-2 px-2 py-1.5 bg-violet-900/30 rounded border border-violet-800/50">
+        <div class="text-[10px] text-violet-300 font-semibold mb-1">⛴ Ship-to-Ship Transfer</div>
+        <% if (vessel.stsPartner) { %>
+        <div class="flex justify-between text-xs">
+          <span class="text-slate-400">Partner</span>
+          <span class="text-white"><%= vessel.stsPartner %></span>
+        </div>
+        <% } %>
+        <% if (vessel.stsVolume) { %>
+        <div class="flex justify-between text-xs">
+          <span class="text-slate-400">Volume</span>
+          <span class="text-white"><%= vessel.stsVolume.toLocaleString() %> m³</span>
+        </div>
+        <% } %>
+      </div>
+      <% } %>
+      <% if (vessel.portCallTags && vessel.portCallTags.length) { %>
+      <div class="flex gap-1 mt-1">
+        <% vessel.portCallTags.forEach(tag => { %>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400"><%= tag %></span>
+        <% }) %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Activity -->
+  <div class="card">
+    <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3">📊 Activity</h3>
+    <div class="space-y-2 text-sm">
+      <% if (vessel.portCallsMetrics) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Unloads (this year)</span>
+        <span class="text-white"><%= vessel.portCallsMetrics.unloads || 0 %></span>
+      </div>
+      <% if (vessel.portCallsMetrics.unloadedThisYearInTon) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Volume Unloaded</span>
+        <span class="text-white"><%= Math.round(vessel.portCallsMetrics.unloadedThisYearInTon).toLocaleString() %> t</span>
+      </div>
+      <% } %>
+      <% if (vessel.portCallsMetrics.loads) { %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Loads (this year)</span>
+        <span class="text-white"><%= vessel.portCallsMetrics.loads %></span>
+      </div>
+      <% } %>
+      <% } %>
+      <div class="flex justify-between">
+        <span class="text-slate-400">Charter Contracts</span>
+        <span class="<%= vessel.charterContracts.length ? 'text-emerald-400' : 'text-slate-500' %>"><%= vessel.charterContracts.length || 'None' %></span>
+      </div>
+      <% if (vessel.charterContracts.length) { %>
+      <div class="mt-1 space-y-1">
+        <% vessel.charterContracts.forEach(cc => { %>
+          <div class="text-[11px] bg-slate-800 rounded px-2 py-1">
+            <span class="text-emerald-300"><%= cc.charterer?.name || cc.charterer?.fullname || 'Unknown' %></span>
+            <% if (cc.startDate) { %><span class="text-slate-500 ml-1"><%= cc.startDate %> → <%= cc.endDate || '?' %></span><% } %>
+          </div>
+        <% }) %>
+      </div>
+      <% } %>
+      <% if (vessel.vesselAvailabilities && vessel.vesselAvailabilities.length) { %>
+      <div class="mt-3">
+        <span class="text-xs text-slate-500">Recent Availability Reports:</span>
+        <div class="mt-1 space-y-1">
+          <% vessel.vesselAvailabilities.slice(0, 3).forEach(va => { %>
+            <div class="text-[11px] bg-slate-800 rounded px-2 py-1">
+              <span class="text-slate-400"><%= va.reportDate %></span>
+              <span class="text-white ml-1"><%= va.delivery?.name || '' %></span>
+              <% if (va.comment) { %>
+                <span class="text-slate-500 ml-1">— "<%= va.comment %>"</span>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Row 3: Voyages & Forecast -->
+<% if (voyages && voyages.length) { %>
+<div class="card mb-4">
+  <h3 class="text-xs font-semibold text-slate-400 uppercase mb-4">🚀 Voyages & Forecast</h3>
+  <div class="overflow-x-auto">
+    <table class="w-full text-[11px]">
+      <thead>
+        <tr class="text-left text-slate-500 border-b border-slate-700">
+          <th class="pb-2 pr-3">Status</th>
+          <th class="pb-2 pr-3">Start</th>
+          <th class="pb-2 pr-3">Load Port</th>
+          <th class="pb-2 pr-3">Volume</th>
+          <th class="pb-2 pr-3">Products</th>
+          <th class="pb-2 pr-3">Discharge Port(s)</th>
+          <th class="pb-2 pr-3">Discharge Date</th>
+          <th class="pb-2">Charterer</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% voyages.forEach(v => {
+          const loads = v.portCalls.filter(pc => pc.operation === 'LOAD');
+          const discharges = v.portCalls.filter(pc => pc.operation === 'DISCHARGE');
+          const isForecast = loads.some(l => l.forecasted) || discharges.some(d => d.forecasted);
+          const loadPort = loads.map(l => l.installation?.name || l.zone?.name || '?').join(' + ');
+          const dischargePorts = discharges.map(d => d.installation?.name || d.zone?.name || '?').join(', ');
+          const dischargeDate = discharges[discharges.length - 1]?.start || discharges[discharges.length - 1]?.eta || '';
+          const mass = loads[0]?.flowQuantities?.[0]?.flowQuantity?.mass;
+          const volume = loads[0]?.flowQuantities?.[0]?.flowQuantity?.volume;
+          const products = loads.flatMap(l => (l.flowQuantities || []).map(fq => fq.product?.name)).filter(Boolean);
+          const charterer = v.charter?.charterer?.name;
+          const now = new Date();
+          const startDate = v.start ? new Date(v.start) : null;
+          const isPast = v.end ? new Date(v.end) < now : false;
+          const isCurrent = startDate && startDate <= now && !isPast;
+        %>
+        <tr class="border-b border-slate-800/50 <%= isPast ? 'opacity-50' : '' %>">
+          <td class="py-2 pr-3">
+            <% if (isForecast) { %>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-medium bg-violet-900/50 text-violet-300">🔮 Forecast</span>
+            <% } else if (isCurrent) { %>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-900/50 text-emerald-300">● Active</span>
+            <% } else { %>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-700 text-slate-400">Past</span>
+            <% } %>
+          </td>
+          <td class="py-2 pr-3 text-white whitespace-nowrap">
+            <%= v.start ? new Date(v.start).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '—' %>
+          </td>
+          <td class="py-2 pr-3 text-cyan-300 font-medium"><%= loadPort %></td>
+          <td class="py-2 pr-3 text-white whitespace-nowrap">
+            <% if (mass) { %><%= Math.round(mass).toLocaleString() %> t<% } else { %>—<% } %>
+            <% if (volume) { %><span class="text-slate-500 ml-1">(<%= Math.round(volume).toLocaleString() %> m³)</span><% } %>
+          </td>
+          <td class="py-2 pr-3 text-slate-300"><%= products.join(', ') || '—' %></td>
+          <td class="py-2 pr-3 text-amber-300"><%= dischargePorts %></td>
+          <td class="py-2 pr-3 text-slate-300 whitespace-nowrap">
+            <%= dischargeDate ? new Date(dischargeDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '—' %>
+          </td>
+          <td class="py-2 text-slate-400"><%= charterer || '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>
+
+<% } else if (cached) { %>
+<!-- Fallback: cached data only -->
+<div class="card">
+  <h2 class="text-2xl font-bold text-white mb-2"><%= cached.name %></h2>
+  <p class="text-slate-400 text-sm">Showing cached data — API token needed for full analysis</p>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4 text-sm">
+    <div><span class="text-slate-400">IMO:</span> <span class="text-white"><%= cached.imo %></span></div>
+    <div><span class="text-slate-400">Flag:</span> <span class="text-white"><%= cached.flag %></span></div>
+    <div><span class="text-slate-400">CBM:</span> <span class="text-white"><%= cached.cbm ? cached.cbm.toLocaleString() : '—' %></span></div>
+    <div><span class="text-slate-400">State:</span> <span class="text-white"><%= cached.state %></span></div>
+    <div><span class="text-slate-400">Controller:</span> <span class="text-white"><%= cached.controller || '—' %></span></div>
+    <div><span class="text-slate-400">Position:</span> <span class="text-white"><%= cached.position || cached.zone_port || '—' %></span></div>
+  </div>
+</div>
+<% } %>

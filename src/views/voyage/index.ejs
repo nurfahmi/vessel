@@ -1,0 +1,360 @@
+<% var pageTitle = 'Voyage Data' %>
+
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <h2 class="text-2xl font-bold text-white">Voyage Data</h2>
+    <p class="text-slate-400 text-sm mt-1">Port-to-port transit times, area mappings, and aliases</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <form method="GET" class="flex items-center gap-2">
+      <input type="hidden" name="tab" value="<%= tab %>">
+      <input type="text" name="q" value="<%= q %>" placeholder="Search..." class="input input-sm w-48">
+      <button type="submit" class="btn btn-sm btn-primary">Search</button>
+      <% if (q) { %><a href="/voyage?tab=<%= tab %>" class="btn btn-sm bg-slate-700 text-white">Clear</a><% } %>
+    </form>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="flex gap-1 mb-4 border-b border-slate-700 pb-2">
+  <a href="/voyage?tab=transit" class="tab-btn <%= tab === 'transit' ? 'active' : '' %>">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+    Transit Times <span class="text-[10px] text-slate-500 ml-1">(<%= destinations.reduce((s,d) => s+d.route_count, 0) %>)</span>
+  </a>
+  <a href="/voyage?tab=areas" class="tab-btn <%= tab === 'areas' ? 'active' : '' %>">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+    Port Areas <span class="text-[10px] text-slate-500 ml-1">(<%= areaCount %>)</span>
+  </a>
+  <a href="/voyage?tab=aliases" class="tab-btn <%= tab === 'aliases' ? 'active' : '' %>">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+    Aliases
+  </a>
+  <a href="/voyage?tab=destinations" class="tab-btn <%= tab === 'destinations' ? 'active' : '' %>">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+    Destinations
+  </a>
+
+  <!-- Test Lookup -->
+  <div class="ml-auto flex items-center gap-1">
+    <input type="text" id="testPosition" placeholder="Test: enter position..." class="input input-sm w-44">
+    <button onclick="testLookup()" class="btn btn-sm bg-violet-600 text-white hover:bg-violet-700">Test</button>
+  </div>
+</div>
+
+<!-- ═══ TAB: TRANSIT TIMES ═══ -->
+<% if (tab === 'transit') { %>
+  <div class="flex gap-4">
+    <!-- Destination sidebar -->
+    <div class="w-48 flex-shrink-0 space-y-0.5">
+      <% destinations.forEach(d => { %>
+        <a href="/voyage?tab=transit&dest=<%= d.id %>" 
+           class="block px-3 py-2 rounded-lg text-xs transition-all
+           <%= selectedDest && selectedDest.id === d.id ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white' %>">
+          <div class="flex items-center justify-between">
+            <span class="font-medium"><%= d.short_label || d.label %></span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700"><%= d.route_count %></span>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+
+    <div class="flex-1">
+      <!-- Add form -->
+      <% if (selectedDest) { %>
+      <div class="card mb-3 p-3">
+        <form action="/voyage/transit" method="POST" class="flex items-end gap-2">
+          <input type="hidden" name="destination_id" value="<%= selectedDest.id %>">
+          <div class="flex-1">
+            <label class="block text-[10px] text-slate-500 mb-0.5">From Position</label>
+            <input type="text" name="from_position" required placeholder="e.g. Far East" class="input input-sm w-full">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-500 mb-0.5">Transit Days</label>
+            <input type="number" name="transit_days" step="0.001" required class="input input-sm w-20">
+          </div>
+          <div class="flex-1">
+            <label class="block text-[10px] text-slate-500 mb-0.5">Notes</label>
+            <input type="text" name="notes" class="input input-sm w-full">
+          </div>
+          <button type="submit" class="btn btn-sm btn-success">Add</button>
+        </form>
+      </div>
+      <% } %>
+
+      <!-- Table -->
+      <div class="card p-0 overflow-hidden">
+        <% if (selectedDest) { %>
+        <div class="px-4 py-2 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-white">
+            Routes to <span class="text-blue-400"><%= selectedDest.label %></span>
+          </h3>
+          <span class="text-[10px] text-slate-500"><%= transitTimes.length %> routes</span>
+        </div>
+        <% } %>
+        <div class="overflow-x-auto max-h-[calc(100vh-320px)]">
+          <table class="data-table">
+            <thead>
+              <tr><th>#</th><th>From Position</th><th>Transit Days</th><% if (q) { %><th>Destination</th><% } %><th>Notes</th><th class="w-10"></th></tr>
+            </thead>
+            <tbody>
+            <% if (transitTimes.length === 0) { %>
+              <tr><td colspan="5" class="text-center py-6 text-slate-500">Select a destination or search for routes</td></tr>
+            <% } %>
+            <% transitTimes.forEach((t, i) => { %>
+              <tr data-id="<%= t.id %>">
+                <td class="text-slate-500"><%= i + 1 %></td>
+                <td><input class="inline-edit font-medium text-white" value="<%= t.from_position %>" data-field="from_position" onchange="saveTransit(this)"></td>
+                <td class="whitespace-nowrap">
+                  <input type="number" step="0.001" class="inline-edit w-16 text-cyan-300 font-mono" value="<%= parseFloat(t.transit_days) %>" data-field="transit_days" onchange="saveTransit(this)">
+                  <% var d=Math.floor(t.transit_days), h=Math.round((t.transit_days-d)*24); %>
+                  <span class="text-[10px] text-slate-500 ml-1"><%= d %>d<% if(h) { %> <%= h %>h<% } %></span>
+                </td>
+                <% if (q) { %><td class="text-blue-300 text-[10px]"><%= t.dest_label %></td><% } %>
+                <td><input class="inline-edit text-slate-400" value="<%= t.notes || '' %>" data-field="notes" onchange="saveTransit(this)"></td>
+                <td><button onclick="deleteItem('transit', <%= t.id %>)" class="text-red-400 hover:text-red-300 text-[10px]">✕</button></td>
+              </tr>
+            <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<!-- ═══ TAB: PORT AREAS ═══ -->
+<% if (tab === 'areas') { %>
+  <div class="flex gap-4">
+    <!-- Area sidebar -->
+    <div class="w-44 flex-shrink-0 space-y-0.5 max-h-[calc(100vh-250px)] overflow-y-auto">
+      <a href="/voyage?tab=areas" class="block px-3 py-1.5 rounded text-xs text-slate-400 hover:bg-slate-800 hover:text-white <%= !selectedArea ? 'bg-blue-600/20 text-blue-300' : '' %>">All (<%= areaCount %>)</a>
+      <% areas.forEach(a => { %>
+        <a href="/voyage?tab=areas&area=<%= encodeURIComponent(a) %>" 
+           class="block px-3 py-1.5 rounded text-xs truncate
+           <%= selectedArea === a ? 'bg-blue-600/20 text-blue-300' : 'text-slate-400 hover:bg-slate-800 hover:text-white' %>">
+          <%= a %>
+        </a>
+      <% }) %>
+    </div>
+
+    <div class="flex-1">
+      <!-- Add form -->
+      <div class="card mb-3 p-3">
+        <form action="/voyage/areas" method="POST" class="flex items-end gap-2">
+          <div class="flex-1">
+            <label class="block text-[10px] text-slate-500 mb-0.5">AIS Location Name</label>
+            <input type="text" name="location_name" required placeholder="e.g. Enterprise Houston" class="input input-sm w-full">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-500 mb-0.5">Maps to Area</label>
+            <input type="text" name="area" required placeholder="e.g. USG" class="input input-sm w-32" list="areasList">
+            <datalist id="areasList"><% areas.forEach(a => { %><option value="<%= a %>"><% }) %></datalist>
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-500 mb-0.5">Region</label>
+            <input type="text" name="region" placeholder="optional" class="input input-sm w-28">
+          </div>
+          <button type="submit" class="btn btn-sm btn-success">Add</button>
+        </form>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <div class="px-4 py-2 border-b border-slate-700 bg-slate-800/50">
+          <span class="text-sm font-semibold text-white"><%= selectedArea || 'All Areas' %></span>
+          <span class="text-[10px] text-slate-500 ml-2"><%= portAreas.length %> locations</span>
+        </div>
+        <div class="overflow-x-auto max-h-[calc(100vh-340px)]">
+          <table class="data-table">
+            <thead><tr><th>#</th><th>AIS Location Name</th><th>Area</th><th>Region</th><th class="w-10"></th></tr></thead>
+            <tbody>
+            <% portAreas.forEach((p, i) => { %>
+              <tr data-id="<%= p.id %>">
+                <td class="text-slate-500"><%= i + 1 %></td>
+                <td><input class="inline-edit text-white" value="<%= p.location_name %>" data-field="location_name" onchange="saveArea(this)"></td>
+                <td><input class="inline-edit text-emerald-300" value="<%= p.area %>" data-field="area" onchange="saveArea(this)"></td>
+                <td><input class="inline-edit text-slate-400" value="<%= p.region || '' %>" data-field="region" onchange="saveArea(this)"></td>
+                <td><button onclick="deleteItem('areas', <%= p.id %>)" class="text-red-400 hover:text-red-300 text-[10px]">✕</button></td>
+              </tr>
+            <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<!-- ═══ TAB: ALIASES ═══ -->
+<% if (tab === 'aliases') { %>
+  <div class="max-w-3xl">
+    <div class="card mb-3 p-3">
+      <form action="/voyage/aliases" method="POST" class="flex items-end gap-2">
+        <div class="flex-1">
+          <label class="block text-[10px] text-slate-500 mb-0.5">Alias Name</label>
+          <input type="text" name="alias_name" required placeholder="e.g. Ridley Island" class="input input-sm w-full">
+        </div>
+        <div class="flex-1">
+          <label class="block text-[10px] text-slate-500 mb-0.5">Canonical / Standard Name</label>
+          <input type="text" name="canonical_name" required placeholder="e.g. Prince Rupert" class="input input-sm w-full">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Notes</label>
+          <input type="text" name="notes" class="input input-sm w-32">
+        </div>
+        <button type="submit" class="btn btn-sm btn-success">Add</button>
+      </form>
+    </div>
+    <div class="card p-0 overflow-hidden">
+      <div class="overflow-x-auto max-h-[calc(100vh-300px)]">
+        <table class="data-table">
+          <thead><tr><th>#</th><th>Alias Name</th><th>→</th><th>Canonical Name</th><th>Notes</th><th class="w-10"></th></tr></thead>
+          <tbody>
+          <% aliases.forEach((a, i) => { %>
+            <tr data-id="<%= a.id %>">
+              <td class="text-slate-500"><%= i + 1 %></td>
+              <td><input class="inline-edit text-amber-300" value="<%= a.alias_name %>" data-field="alias_name" onchange="saveAlias(this)"></td>
+              <td class="text-slate-600">→</td>
+              <td><input class="inline-edit text-white font-medium" value="<%= a.canonical_name %>" data-field="canonical_name" onchange="saveAlias(this)"></td>
+              <td><input class="inline-edit text-slate-400 w-32" value="<%= a.notes || '' %>" data-field="notes" onchange="saveAlias(this)"></td>
+              <td><button onclick="deleteItem('aliases', <%= a.id %>)" class="text-red-400 hover:text-red-300 text-[10px]">✕</button></td>
+            </tr>
+          <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<!-- ═══ TAB: DESTINATIONS ═══ -->
+<% if (tab === 'destinations') { %>
+  <div class="max-w-3xl">
+    <div class="card mb-3 p-3">
+      <form action="/voyage/destinations" method="POST" class="flex items-end gap-2">
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Key</label>
+          <input type="text" name="key" required placeholder="e.g. AG" class="input input-sm w-32">
+        </div>
+        <div class="flex-1">
+          <label class="block text-[10px] text-slate-500 mb-0.5">Label</label>
+          <input type="text" name="label" required placeholder="e.g. AG (Ras Tanura)" class="input input-sm w-full">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Short Label</label>
+          <input type="text" name="short_label" placeholder="e.g. AG" class="input input-sm w-24">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Order</label>
+          <input type="number" name="sort_order" value="<%= destinations.length + 1 %>" class="input input-sm w-14">
+        </div>
+        <button type="submit" class="btn btn-sm btn-success">Add</button>
+      </form>
+    </div>
+    <div class="card p-0 overflow-hidden">
+      <table class="data-table">
+        <thead><tr><th>Order</th><th>Key</th><th>Label</th><th>Short</th><th>Routes</th><th class="w-10"></th></tr></thead>
+        <tbody>
+        <% destinations.forEach(d => { %>
+          <tr data-id="<%= d.id %>">
+            <td><input type="number" class="inline-edit w-10 text-center text-slate-400" value="<%= d.sort_order %>" data-field="sort_order" onchange="saveDest(this)"></td>
+            <td><input class="inline-edit font-mono text-blue-300 w-28" value="<%= d.key %>" data-field="key" onchange="saveDest(this)"></td>
+            <td><input class="inline-edit text-white font-medium" value="<%= d.label %>" data-field="label" onchange="saveDest(this)"></td>
+            <td><input class="inline-edit text-slate-400 w-20" value="<%= d.short_label || '' %>" data-field="short_label" onchange="saveDest(this)"></td>
+            <td>
+              <a href="/voyage?tab=transit&dest=<%= d.id %>" class="text-cyan-400 hover:underline text-xs"><%= d.route_count %> routes →</a>
+            </td>
+            <td><button onclick="deleteItem('destinations', <%= d.id %>)" class="text-red-400 hover:text-red-300 text-[10px]">✕</button></td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
+<!-- Test Results Modal -->
+<div id="testModal" style="display:none" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-5 w-[500px] max-h-[70vh] overflow-auto">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-bold text-white">Lookup Test Results</h3>
+      <button onclick="document.getElementById('testModal').style.display='none'" class="text-slate-400 hover:text-white">✕</button>
+    </div>
+    <div id="testResults"></div>
+  </div>
+</div>
+
+<style>
+  .tab-btn { display:inline-flex; align-items:center; gap:0.35rem; padding:0.5rem 0.75rem; font-size:0.75rem; color:#94a3b8; border-radius:0.375rem; transition:all 0.15s; text-decoration:none; }
+  .tab-btn:hover { color:#fff; background:rgba(255,255,255,0.05); }
+  .tab-btn.active { color:#93c5fd; background:rgba(59,130,246,0.15); font-weight:500; }
+</style>
+
+<script>
+async function saveTransit(input) {
+  const row = input.closest('tr');
+  const id = row.dataset.id;
+  const fields = { destination_id: '<%= selectedDest ? selectedDest.id : '' %>' };
+  row.querySelectorAll('.inline-edit').forEach(el => fields[el.dataset.field] = el.value);
+  try {
+    const r = await fetch('/voyage/transit/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fields) });
+    if (r.ok) { input.style.backgroundColor='#065f4620'; setTimeout(()=>input.style.backgroundColor='',800); }
+  } catch(e) { input.style.backgroundColor='#7f1d1d40'; }
+}
+
+async function saveArea(input) {
+  const row = input.closest('tr');
+  const fields = {};
+  row.querySelectorAll('.inline-edit').forEach(el => fields[el.dataset.field] = el.value);
+  try {
+    const r = await fetch('/voyage/areas/' + row.dataset.id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fields) });
+    if (r.ok) { input.style.backgroundColor='#065f4620'; setTimeout(()=>input.style.backgroundColor='',800); }
+  } catch(e) { input.style.backgroundColor='#7f1d1d40'; }
+}
+
+async function saveAlias(input) {
+  const row = input.closest('tr');
+  const fields = {};
+  row.querySelectorAll('.inline-edit').forEach(el => fields[el.dataset.field] = el.value);
+  try {
+    const r = await fetch('/voyage/aliases/' + row.dataset.id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fields) });
+    if (r.ok) { input.style.backgroundColor='#065f4620'; setTimeout(()=>input.style.backgroundColor='',800); }
+  } catch(e) { input.style.backgroundColor='#7f1d1d40'; }
+}
+
+async function saveDest(input) {
+  const row = input.closest('tr');
+  const fields = {};
+  row.querySelectorAll('.inline-edit').forEach(el => fields[el.dataset.field] = el.value);
+  try {
+    const r = await fetch('/voyage/destinations/' + row.dataset.id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fields) });
+    if (r.ok) { input.style.backgroundColor='#065f4620'; setTimeout(()=>input.style.backgroundColor='',800); }
+  } catch(e) { input.style.backgroundColor='#7f1d1d40'; }
+}
+
+async function deleteItem(type, id) {
+  if (!confirm('Delete this entry?')) return;
+  const r = await fetch('/voyage/' + type + '/' + id, { method:'DELETE' });
+  if (r.ok) location.reload();
+}
+
+async function testLookup() {
+  const pos = document.getElementById('testPosition').value.trim();
+  if (!pos) return;
+  const r = await fetch('/voyage/test-lookup?position=' + encodeURIComponent(pos));
+  const data = await r.json();
+  
+  let html = '<div class="mb-3">';
+  html += '<div class="text-xs text-slate-400">Position: <span class="text-white font-medium">' + data.position + '</span></div>';
+  if (data.resolved_area) html += '<div class="text-xs text-slate-400">Area: <span class="text-emerald-300">' + data.resolved_area + '</span></div>';
+  if (data.resolved_alias) html += '<div class="text-xs text-slate-400">Alias: <span class="text-amber-300">' + data.resolved_alias + '</span></div>';
+  html += '</div><table class="data-table"><thead><tr><th>Destination</th><th>Transit Days</th></tr></thead><tbody>';
+  data.results.forEach(r => {
+    const days = r.transit_days ? parseFloat(r.transit_days) : null;
+    html += '<tr><td class="text-white">' + r.destination + '</td>';
+    html += '<td class="' + (days !== null ? 'text-cyan-300 font-mono' : 'text-slate-600') + '">' + (days !== null ? days : 'No route found') + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('testResults').innerHTML = html;
+  document.getElementById('testModal').style.display = 'flex';
+}
+</script>

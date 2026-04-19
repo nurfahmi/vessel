@@ -1,0 +1,31 @@
+<% var pageTitle = 'COAs' %>
+<div class="mb-4"><h2 class="text-2xl font-bold text-white">Contract of Affreightments</h2></div>
+<details class="card mb-4">
+  <summary class="cursor-pointer text-sm font-medium text-slate-300">+ Add COA</summary>
+  <form action="/coa" method="POST" class="mt-4 flex items-end gap-3">
+    <div class="flex-1"><input type="text" name="pool" required placeholder="Pool" class="input input-sm w-full"></div>
+    <div class="flex-1"><input type="text" name="charterer" required placeholder="Charterer" class="input input-sm w-full"></div>
+    <div class="flex-1"><input type="text" name="route" placeholder="Route" class="input input-sm w-full"></div>
+    <div class="flex-1"><input type="text" name="frequency" placeholder="Frequency" class="input input-sm w-full"></div>
+    <div class="flex-1"><input type="text" name="rate_notes" placeholder="Rate/Notes" class="input input-sm w-full"></div>
+    <button type="submit" class="btn btn-sm btn-success">Add</button>
+  </form>
+</details>
+<div class="card p-0 overflow-hidden">
+  <table class="data-table">
+    <thead><tr><th>#</th><th>Pool</th><th>Charterer</th><th>Route</th><th>Frequency</th><th>Rate/Notes</th><th class="w-12"></th></tr></thead>
+    <tbody>
+      <% coas.forEach((c, i) => { %>
+        <tr>
+          <td class="text-slate-500"><%= i+1 %></td>
+          <td class="font-medium text-white"><%= c.pool %></td>
+          <td class="text-blue-300"><%= c.charterer %></td>
+          <td><%= c.route || '' %></td>
+          <td class="text-slate-400"><%= c.frequency || '' %></td>
+          <td class="text-emerald-300"><%= c.rate_notes || '' %></td>
+          <td><button onclick="if(confirm('Delete?'))fetch('/coa/<%= c.id %>',{method:'DELETE'}).then(()=>location.reload())" class="text-red-400 hover:text-red-300 text-xs">✕</button></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

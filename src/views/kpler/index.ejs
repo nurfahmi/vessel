@@ -1,0 +1,186 @@
+<% var pageTitle = 'Kpler Fleet Data' %>
+
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <h2 class="text-2xl font-bold text-white">VLGC Fleet Data</h2>
+    <p class="text-slate-400 text-sm mt-1">
+      <%= kplerCount %> vessels via Kpler API · 
+      <%= enrichedCount %> enriched · 
+      <%= mappedCount %> mapped to tracker
+      <% if (lastSync) { %> · Last sync: <%= new Date(lastSync).toLocaleString() %><% } %>
+    </p>
+  </div>
+  <div class="flex items-center gap-2">
+    <% if (hasToken) { %>
+      <button id="btnSync" class="btn btn-sm btn-primary" onclick="syncAll()">⟳ Sync Now</button>
+      <button class="btn btn-sm bg-amber-600/80 text-white hover:bg-amber-600" onclick="reEnrich()">🔄 Re-enrich All</button>
+    <% } else { %>
+      <a href="/settings" class="btn btn-sm bg-amber-600 text-white">Configure Token →</a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Sync Progress -->
+<div id="syncProgress" style="display:none" class="card mb-4">
+  <div class="flex items-center gap-3">
+    <div class="animate-spin text-blue-400">⟳</div>
+    <div class="flex-1">
+      <div class="text-sm font-medium text-white" id="syncStatus">Syncing...</div>
+      <div class="text-xs text-slate-400" id="syncDetail"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Data Table -->
+<div class="card p-0 overflow-hidden">
+  <div class="overflow-x-auto max-h-[calc(100vh-250px)]">
+    <table class="data-table" id="fleetTable">
+      <thead>
+        <tr>
+          <th class="w-8">#</th>
+          <th>Vessel Name</th>
+          <th>CBM</th>
+          <th>State</th>
+          <th>Status</th>
+          <th>IMO</th>
+          <th>Flag</th>
+          <th>Built</th>
+          <th>Position</th>
+          <th>Next Destination</th>
+          <th>Next Dest ETA</th>
+          <th>Controller</th>
+          <th>Owner</th>
+          <th class="w-10"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (data.length === 0) { %>
+          <tr><td colspan="14" class="text-center py-8 text-slate-500">No data. Click Sync Now to fetch from Kpler API.</td></tr>
+        <% } %>
+        <% data.forEach((row, i) => { %>
+          <tr>
+            <td class="text-slate-500"><%= i + 1 %></td>
+            <td class="font-medium text-white whitespace-nowrap">
+              <a href="/vessel-intel/<%= row.kpler_id %>" class="hover:text-cyan-300 transition-colors"><%= row.name %></a>
+            </td>
+            <td><%= row.cbm ? row.cbm.toLocaleString() : '' %></td>
+            <td>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-medium
+                <%= row.state === 'loaded' ? 'bg-emerald-900/50 text-emerald-300' : 
+                   row.state === 'ballast' ? 'bg-blue-900/50 text-blue-300' : 
+                   'bg-slate-700 text-slate-300' %>">
+                <%= row.state || '—' %>
+              </span>
+            </td>
+            <td><span class="<%= row.status === 'Active' ? 'text-emerald-400' : 'text-amber-400' %>"><%= row.status %></span></td>
+            <td class="text-slate-400"><%= row.imo || '' %></td>
+            <td class="text-slate-400 text-[10px]"><%= row.flag || '' %></td>
+            <td class="text-slate-400"><%= row.built_year || '' %></td>
+            <td class="<%= row.position ? 'text-cyan-300' : 'text-slate-600' %>"><%= row.position || row.zone_port || '—' %></td>
+            <td class="<%= row.next_dest_name ? '' : row.ais_destination ? 'text-slate-400' : '' %>"><%= row.next_dest_name || row.ais_destination || '' %></td>
+            <td><%= (row.next_dest_eta || row.ais_eta) ? new Date(row.next_dest_eta || row.ais_eta).toLocaleDateString() : '' %></td>
+            <td class="text-blue-300"><%= row.controller || '' %></td>
+            <td class="text-slate-400 text-xs"><%= row.owner || '' %></td>
+            <td class="text-center">
+              <button onclick="refreshVessel(this, <%= row.kpler_id %>)" 
+                class="text-slate-500 hover:text-cyan-300 text-xs transition-colors" title="Refresh">⟳</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let pollTimer = null;
+
+async function refreshVessel(btn, kplerId) {
+  const row = btn.closest('tr');
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/kpler/api/sync-single`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kpler_vessel_id: kplerId })
+    });
+    const d = await r.json();
+    if (d.error) {
+      btn.textContent = '✕';
+      btn.title = d.error;
+    } else {
+      btn.textContent = '✓';
+      btn.classList.replace('text-slate-500', 'text-emerald-400');
+      // Update row cells with new data
+      const cells = row.querySelectorAll('td');
+      if (d.position) cells[8].textContent = d.position;
+      if (d.next_dest_name) cells[9].textContent = d.next_dest_name;
+      if (d.controller) cells[11].textContent = d.controller;
+      if (d.owner) cells[12].textContent = d.owner;
+    }
+  } catch(e) {
+    btn.textContent = '✕';
+  }
+  setTimeout(() => { btn.textContent = '⟳'; btn.disabled = false; btn.classList.replace('text-emerald-400', 'text-slate-500'); }, 3000);
+}
+
+async function syncAll() {
+  const btn = document.getElementById('btnSync');
+  btn.disabled = true;
+  btn.textContent = '⟳ Starting...';
+  document.getElementById('syncProgress').style.display = 'block';
+  document.getElementById('syncStatus').textContent = 'Starting sync...';
+  document.getElementById('syncDetail').textContent = '';
+
+  try {
+    await fetch('/kpler/api/sync-all', { method: 'POST' });
+    pollTimer = setInterval(pollStatus, 1000);
+  } catch(e) {
+    document.getElementById('syncStatus').textContent = '✕ Failed: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '⟳ Retry';
+  }
+}
+
+async function pollStatus() {
+  try {
+    const r = await fetch('/kpler/api/sync-status');
+    const s = r.ok ? await r.json() : {};
+
+    if (s.phase === 'bulk') {
+      document.getElementById('syncStatus').textContent = '⟳ Fetching fleet data...';
+      document.getElementById('syncDetail').textContent = 'Bulk API call';
+    } else if (s.phase === 'bulk_done') {
+      document.getElementById('syncStatus').textContent = `✓ ${s.synced} vessels synced`;
+      document.getElementById('syncDetail').textContent = 'Checking for missing data...';
+    } else if (s.phase === 'enrich') {
+      const pct = s.enrichTotal ? Math.round((s.enriched / s.enrichTotal) * 100) : 0;
+      document.getElementById('syncStatus').textContent = 
+        `⟳ Enriching: ${s.enriched}/${s.enrichTotal} (${pct}%)`;
+      document.getElementById('syncDetail').textContent = s.current || '';
+      document.getElementById('btnSync').textContent = `${pct}%`;
+    }
+
+    if (s.done) {
+      clearInterval(pollTimer);
+      if (s.error) {
+        document.getElementById('syncStatus').textContent = '✕ ' + s.error;
+        document.getElementById('btnSync').disabled = false;
+        document.getElementById('btnSync').textContent = '⟳ Retry';
+      } else {
+        document.getElementById('syncStatus').textContent = 
+          `✓ ${s.synced} synced · ${s.enriched} enriched`;
+        document.getElementById('syncDetail').textContent = '';
+        document.getElementById('btnSync').textContent = '✓ Done';
+        setTimeout(() => location.reload(), 2000);
+      }
+    }
+  } catch(e) { /* ignore */ }
+}
+async function reEnrich() {
+  if (!confirm('Re-enrich all active vessels? This will make ~420 individual API calls (~10-15 min).')) return;
+  await fetch('/kpler/api/reset-enrichment', { method: 'POST' });
+  syncAll();
+}
+</script>
