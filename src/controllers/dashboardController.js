@@ -1,24 +1,41 @@
-const Vessel = require('../models/Vessel');
-const TrackerEntry = require('../models/TrackerEntry');
 const Setting = require('../models/Setting');
 const db = require('../config/database');
 
 const dashboardController = {
   async index(req, res) {
     try {
-      const vesselCount = await Vessel.count();
-      const trackerCount = await TrackerEntry.count();
-      const [routeRows] = await db.query('SELECT COUNT(*) as c FROM transit_times');
-      const routeCount = routeRows[0].c;
-
-      let activeCount = 0;
-      let ucCount = 0;
+      // Kpler fleet stats (primary source)
+      let fleetStats = { total: 0, active: 0, uc: 0, ballast: 0, loaded: 0, no_ais: 0, enriched: 0 };
       try {
-        const [ac] = await db.query("SELECT COUNT(*) as c FROM kpler_vessels WHERE status = 'Active'");
-        const [uc] = await db.query("SELECT COUNT(*) as c FROM kpler_vessels WHERE status = 'Under Construction'");
-        activeCount = ac[0].c;
-        ucCount = uc[0].c;
+        const [s] = await db.query(`
+          SELECT 
+            COUNT(*) as total,
+            SUM(status='Active') as active,
+            SUM(status='Under Construction') as uc,
+            SUM(state='ballast') as ballast,
+            SUM(state='loaded') as loaded,
+            SUM(status='Active' AND lat IS NULL AND speed IS NULL) as no_ais,
+            SUM(is_floating_storage=1) as floating_storage
+          FROM kpler_fleet
+        `);
+        fleetStats = s[0];
       } catch (e) { /* table may not exist yet */ }
+
+      // Enriched count from kpler_vessels
+      let enrichedCount = 0;
+      try {
+        const [ec] = await db.query('SELECT COUNT(*) as c FROM kpler_vessels WHERE enriched_at IS NOT NULL');
+        enrichedCount = ec[0].c;
+      } catch (e) {}
+
+      // Voyage data stats
+      let voyageStats = { destinations: 0, transitRoutes: 0, portAreas: 0 };
+      try {
+        const [d] = await db.query('SELECT COUNT(*) as c FROM destinations');
+        const [t] = await db.query('SELECT COUNT(*) as c FROM transit_times');
+        const [p] = await db.query('SELECT COUNT(*) as c FROM port_areas');
+        voyageStats = { destinations: d[0].c, transitRoutes: t[0].c, portAreas: p[0].c };
+      } catch (e) {}
 
       // Kpler API status
       const tokenLastRefresh = await Setting.get('kpler_token_last_refresh');
@@ -31,40 +48,28 @@ const dashboardController = {
       if (tokenLastRefresh) {
         const diff = Date.now() - new Date(tokenLastRefresh).getTime();
         tokenAge = Math.floor(diff / 60000); // minutes
-        // Cron runs every 4 min. Active if within 10 min, stale if within 60 min.
         tokenStatus = tokenAge < 10 ? 'active' : tokenAge < 60 ? 'stale' : 'expired';
       }
 
-      // Kpler vessels stats
-      let kplerStats = { total: 0, ballast: 0, loaded: 0, mapped: 0 };
-      try {
-        const [total] = await db.query('SELECT COUNT(*) as c FROM kpler_vessels');
-        const [ballast] = await db.query("SELECT COUNT(*) as c FROM kpler_vessels WHERE state = 'ballast'");
-        const [loaded] = await db.query("SELECT COUNT(*) as c FROM kpler_vessels WHERE state = 'loaded'");
-        const [mapped] = await db.query('SELECT COUNT(*) as c FROM vessels WHERE kpler_vessel_id IS NOT NULL');
-        kplerStats = { total: total[0].c, ballast: ballast[0].c, loaded: loaded[0].c, mapped: mapped[0].c };
-      } catch (e) { /* table may not exist */ }
-
       res.render('dashboard/index', {
-        vesselCount,
-        trackerCount,
-        routeCount,
-        activeCount,
-        ucCount,
+        fleetStats,
+        enrichedCount,
+        voyageStats,
         tokenStatus,
         tokenAge,
         tokenLastRefresh,
         lastSync,
-        hasRefreshToken,
-        kplerStats
+        hasRefreshToken
       });
     } catch (err) {
       console.error('Dashboard error:', err);
       req.flash('error', 'Failed to load dashboard');
       res.render('dashboard/index', {
-        vesselCount: 0, trackerCount: 0, routeCount: 0, activeCount: 0, ucCount: 0,
+        fleetStats: { total: 0, active: 0, uc: 0, ballast: 0, loaded: 0, no_ais: 0, floating_storage: 0 },
+        enrichedCount: 0,
+        voyageStats: { destinations: 0, transitRoutes: 0, portAreas: 0 },
         tokenStatus: 'inactive', tokenAge: null, tokenLastRefresh: null,
-        lastSync: null, hasRefreshToken: false, kplerStats: { total: 0, ballast: 0, loaded: 0, mapped: 0 }
+        lastSync: null, hasRefreshToken: false
       });
     }
   }

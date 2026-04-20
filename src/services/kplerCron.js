@@ -3,6 +3,7 @@ const Setting = require('../models/Setting');
 const KPLER_AUTH_URL = 'https://auth.kpler.com/oauth/token';
 
 let isRefreshing = false;
+let lastSuccessTime = null;
 
 /**
  * Keep the Kpler token alive by refreshing every 4 minutes.
@@ -51,16 +52,17 @@ async function refreshTokenJob() {
         await Setting.set('kpler_refresh_token', data.refresh_token);
       }
 
+      lastSuccessTime = Date.now();
       await Setting.set('kpler_token_last_refresh', new Date().toISOString());
       console.log(`[Kpler Cron] ✓ Token refreshed at ${new Date().toLocaleTimeString()}`);
     } else {
       const err = await res.text();
       console.error(`[Kpler Cron] ✕ Token refresh failed: ${err}`);
-      // Don't clear the token — it might work next time
     }
   } catch (err) {
     console.error(`[Kpler Cron] ✕ Error: ${err.message}`);
   } finally {
+    // ALWAYS unlock — prevents deadlock
     isRefreshing = false;
   }
 }
