@@ -1,11 +1,28 @@
-const db = require('../config/database');
+const mysql = require('mysql2/promise');
+require('dotenv').config();
+
+const DB_NAME = process.env.DB_NAME || 'vlgc_sorter';
 
 /**
  * Initialize all database tables on startup.
- * Uses CREATE TABLE IF NOT EXISTS so it's safe to run repeatedly.
+ * First creates the database, then creates all tables.
  */
 async function initAllTables() {
   try {
+    // Step 1: Create database if not exists (connect without database)
+    const conn = await mysql.createConnection({
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT) || 3306,
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+    });
+    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    await conn.end();
+    console.log('[DB] ✓ Database ready');
+
+    // Step 2: Now require the pool (safe because DB exists)
+    const db = require('../config/database');
+
     // Users
     await db.query(`CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
