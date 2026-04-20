@@ -74,10 +74,24 @@
       <option value="0">US Restricted</option>
     </select>
     <input type="text" id="searchInput" placeholder="Search..." class="input input-sm w-32" oninput="filterTable()">
+    <div class="flex items-center gap-1" style="background:#1e293b;border-radius:6px;padding:2px 4px;">
+      <button onclick="enrichAll(this)" class="btn btn-sm" style="background:#7c3aed;color:white;padding:4px 10px;border-radius:4px;font-size:10px;cursor:pointer;">
+        ⚡ Enrich
+      </button>
+      <select id="enrichHours" style="background:transparent;color:#a78bfa;border:0;font-size:10px;outline:none;cursor:pointer;">
+        <option value="1">1h</option>
+        <option value="4">4h</option>
+        <option value="8">8h</option>
+        <option value="12" selected>12h</option>
+        <option value="24">24h</option>
+        <option value="0">Force All</option>
+      </select>
+    </div>
     <a href="/availability/export" class="btn btn-sm" style="background: #0f766e; color: white; padding: 4px 12px; border-radius: 6px; font-size: 11px; text-decoration: none;">
       📊 Excel
     </a>
   </div>
+  <div id="enrichStatus" style="display:none;" class="text-[10px] text-purple-300 mt-1"></div>
 </div>
 
 <div class="card p-0 overflow-hidden">
@@ -339,5 +353,34 @@ function savePosition(kplerId, select) {
     select.className = 'pos-select ' + (select.value ? 'manual' : 'auto');
     select.closest('tr').setAttribute('data-sort-pos', select.value);
   });
+}
+
+function enrichAll(btn) {
+  const hours = document.getElementById('enrichHours').value;
+  const status = document.getElementById('enrichStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enriching...';
+  status.style.display = 'block';
+  status.textContent = 'Starting enrichment (cooldown: ' + (hours == 0 ? 'force all' : hours + 'h') + ')...';
+
+  const es = new EventSource('/kpler-vessels/api/enrich-all?hours=' + hours);
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.type === 'progress') {
+      status.textContent = `${d.skip ? '⏭' : '✓'} ${d.name} — ${d.enriched} enriched, ${d.skipped} skipped, ${d.failed} failed / ${d.total}`;
+    } else if (d.type === 'done') {
+      status.textContent = `✅ Done: ${d.enriched} enriched, ${d.skipped} skipped, ${d.failed} failed`;
+      btn.disabled = false;
+      btn.textContent = '⚡ Enrich';
+      es.close();
+      setTimeout(() => location.reload(), 2000);
+    } else if (d.type === 'error') {
+      status.textContent = '❌ Error: ' + d.message;
+      btn.disabled = false;
+      btn.textContent = '⚡ Enrich';
+      es.close();
+    }
+  };
+  es.onerror = () => { es.close(); btn.disabled = false; btn.textContent = '⚡ Enrich'; };
 }
 </script>

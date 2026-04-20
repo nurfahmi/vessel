@@ -271,6 +271,7 @@ router.get('/api/enrich-all', isAuthenticated, async (req, res) => {
   res.flushHeaders();
 
   try {
+    const cooldownHours = parseFloat(req.query.hours) || 12;
     const [fleet] = await db.query(`
       SELECT f.kpler_id, f.name, d.fetched_at
       FROM kpler_fleet f
@@ -279,13 +280,13 @@ router.get('/api/enrich-all', isAuthenticated, async (req, res) => {
     `);
     const total = fleet.length;
     let enriched = 0, failed = 0, skipped = 0;
-    const twelveHoursAgo = Date.now() - (12 * 60 * 60 * 1000);
+    const cutoff = Date.now() - (cooldownHours * 60 * 60 * 1000);
 
-    res.write(`data: ${JSON.stringify({ type: 'start', total })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'start', total, cooldownHours })}\n\n`);
 
     for (const v of fleet) {
-      // Skip if enriched less than 12 hours ago
-      if (v.fetched_at && new Date(v.fetched_at).getTime() > twelveHoursAgo) {
+      // Skip if enriched within cooldown window
+      if (v.fetched_at && new Date(v.fetched_at).getTime() > cutoff) {
         skipped++;
         res.write(`data: ${JSON.stringify({ type: 'progress', name: v.name, enriched, failed, skipped, total, skip: true })}\n\n`);
         continue;
