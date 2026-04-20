@@ -75,9 +75,18 @@ async function initVoyageTables() {
       // Seed from SQL file
       const sqlPath = path.join(__dirname, '..', '..', 'sql', 'voyage_data.sql');
       if (fs.existsSync(sqlPath)) {
+        // Remove full-line comments but preserve inline content
         const sql = fs.readFileSync(sqlPath, 'utf8');
-        // Split by semicolons followed by newline (avoids splitting inside VALUES)
-        const statements = sql.split(/;\s*\n/).filter(s => s.trim() && !s.trim().startsWith('--'));
+        const lines = sql.split('\n');
+        const cleanedLines = lines.map(line => {
+          const trimmed = line.trim();
+          // Skip lines that are purely comments
+          if (trimmed.startsWith('--')) return '';
+          return line;
+        });
+        const cleaned = cleanedLines.join('\n');
+        // Split by semicolons followed by newline
+        const statements = cleaned.split(/;\s*\n/).filter(s => s.trim());
         let ok = 0, fail = 0;
         for (const stmt of statements) {
           const trimmed = stmt.trim();
