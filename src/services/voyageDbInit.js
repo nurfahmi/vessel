@@ -69,27 +69,40 @@ async function initVoyageTables() {
     // Check if tables need seeding
     const [transitCount] = await db.query('SELECT COUNT(*) as c FROM transit_times');
     const [areaCount] = await db.query('SELECT COUNT(*) as c FROM port_areas');
+    const [destCount] = await db.query('SELECT COUNT(*) as c FROM destinations');
 
-    if (transitCount[0].c === 0 || areaCount[0].c === 0) {
+    if (transitCount[0].c === 0 || areaCount[0].c === 0 || destCount[0].c === 0) {
       // Seed from SQL file
       const sqlPath = path.join(__dirname, '..', '..', 'sql', 'voyage_data.sql');
       if (fs.existsSync(sqlPath)) {
         const sql = fs.readFileSync(sqlPath, 'utf8');
-        // Split by semicolons and run each statement
-        const statements = sql.split(';').filter(s => s.trim() && !s.trim().startsWith('--'));
+        // Split by semicolons followed by newline (avoids splitting inside VALUES)
+        const statements = sql.split(/;\s*\n/).filter(s => s.trim() && !s.trim().startsWith('--'));
+        let ok = 0, fail = 0;
         for (const stmt of statements) {
+          const trimmed = stmt.trim();
+          if (!trimmed) continue;
           try {
-            await db.query(stmt);
+            await db.query(trimmed);
+            ok++;
           } catch (e) {
-            // Skip errors (table already exists, duplicate keys, etc.)
+            fail++;
+            // Log first 100 chars of failed statement for debugging
+            console.error('[Voyage] ✕ Seed error:', e.message, '| stmt:', trimmed.substring(0, 100));
           }
         }
-        console.log('[Voyage] ✓ Tables created and seeded from voyage_data.sql');
+        console.log(`[Voyage] ✓ Seeded (${ok} ok, ${fail} failed)`);
+
+        // Verify counts
+        const [tc] = await db.query('SELECT COUNT(*) as c FROM transit_times');
+        const [ac] = await db.query('SELECT COUNT(*) as c FROM port_areas');
+        const [dc] = await db.query('SELECT COUNT(*) as c FROM destinations');
+        console.log(`[Voyage] ✓ Final: destinations=${dc[0].c} | transit=${tc[0].c} | areas=${ac[0].c}`);
       } else {
-        console.log('[Voyage] ⚠ No seed file found at sql/voyage_data.sql');
+        console.log('[Voyage] ⚠ No seed file found at', sqlPath);
       }
     } else {
-      console.log('[Voyage] ✓ Tables OK (transit:', transitCount[0].c, '| areas:', areaCount[0].c + ')');
+      console.log('[Voyage] ✓ Tables OK (dest:', destCount[0].c, '| transit:', transitCount[0].c, '| areas:', areaCount[0].c + ')');
     }
   } catch (err) {
     console.error('[Voyage] DB init error:', err.message);
