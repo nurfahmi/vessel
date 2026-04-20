@@ -1,6 +1,29 @@
 -- Voyage Days Seed Data
 -- Source: VLGC Sorter_20 Apr.xlsx (Voyage days sheet)
 
+-- Destinations (11 entries)
+CREATE TABLE IF NOT EXISTS destinations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  `key` VARCHAR(255) UNIQUE,
+  label VARCHAR(255),
+  short_label VARCHAR(100),
+  sort_order INT DEFAULT 0
+);
+
+INSERT INTO destinations (`key`, label, short_label, sort_order) VALUES
+  ('AG', 'AG (Ras Tanura)', 'AG', 1),
+  ('USG_PANAMA', 'USG via Panama', 'USG (P)', 2),
+  ('USG_CAPE', 'USG via Cape', 'USG (C)', 3),
+  ('WAF', 'WAF (Bonny)', 'WAF', 4),
+  ('BETHIOUA', 'Bethioua', 'Bethioua', 5),
+  ('SINGAPORE', 'Singapore', 'S''pore', 6),
+  ('WESTERNPORT', 'Westernport', 'West''port', 7),
+  ('DARWIN', 'Darwin', 'Darwin', 8),
+  ('PRINCE_RUPERT', 'Prince Rupert', 'P.Rupert', 9),
+  ('BONYTHON', 'Bonython', 'Bonython', 10),
+  ('YANBU', 'Yanbu', 'Yanbu', 11)
+ON DUPLICATE KEY UPDATE label=VALUES(label), short_label=VALUES(short_label), sort_order=VALUES(sort_order);
+
 -- Port Areas (1139 entries)
 CREATE TABLE IF NOT EXISTS port_areas (
   id INT AUTO_INCREMENT PRIMARY KEY,
