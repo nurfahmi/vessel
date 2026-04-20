@@ -223,7 +223,7 @@ router.get('/', isAuthenticated, async (req, res) => {
     const [stats] = await db.query(`
       SELECT 
         COUNT(*) as total,
-        SUM(status='Active' AND lat IS NULL AND speed IS NULL) as no_ais,
+        SUM(status='Active' AND (next_dest_installation IS NULL OR next_dest_installation = '') AND (next_dest_zone IS NULL OR next_dest_zone = '')) as no_ais,
         SUM(state='ballast') as ballast,
         SUM(state='loaded') as loaded,
         SUM(status='Active') as active,

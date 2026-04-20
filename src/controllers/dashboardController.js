@@ -14,7 +14,7 @@ const dashboardController = {
             SUM(status='Under Construction') as uc,
             SUM(state='ballast') as ballast,
             SUM(state='loaded') as loaded,
-            SUM(status='Active' AND lat IS NULL AND speed IS NULL) as no_ais,
+            SUM(status='Active' AND (next_dest_installation IS NULL OR next_dest_installation = '') AND (next_dest_zone IS NULL OR next_dest_zone = '')) as no_ais,
             SUM(is_floating_storage=1) as floating_storage
           FROM kpler_fleet
         `);
