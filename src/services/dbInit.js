@@ -370,6 +370,39 @@ async function initAllTables() {
       imported_by VARCHAR(100),
       imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
+    // === Schema patches for existing deployments ===
+    const patches = [
+      'ALTER TABLE vessels ADD COLUMN tracked TINYINT DEFAULT 0',
+      'ALTER TABLE kpler_vessels ADD COLUMN call_sign VARCHAR(20)',
+      'ALTER TABLE kpler_vessels ADD COLUMN built_country VARCHAR(100)',
+      'ALTER TABLE kpler_vessels ADD COLUMN cargo_type VARCHAR(100)',
+      'ALTER TABLE kpler_vessels ADD COLUMN num_tanks INT',
+      'ALTER TABLE kpler_vessels ADD COLUMN deadweight INT',
+      'ALTER TABLE kpler_vessels ADD COLUMN max_speed DECIMAL(5,1)',
+      'ALTER TABLE kpler_vessels ADD COLUMN horsepower INT',
+      'ALTER TABLE kpler_vessels ADD COLUMN is_ethylene_capable TINYINT DEFAULT 0',
+      'ALTER TABLE kpler_vessels ADD COLUMN is_floating_storage TINYINT DEFAULT 0',
+      'ALTER TABLE kpler_vessels ADD COLUMN charter_charterer VARCHAR(255)',
+      'ALTER TABLE kpler_vessels ADD COLUMN position_zones VARCHAR(255)',
+      'ALTER TABLE kpler_vessels ADD COLUMN course DECIMAL(5,1)',
+      'ALTER TABLE kpler_vessels ADD COLUMN beam DECIMAL(5,2)',
+      'ALTER TABLE kpler_vessels ADD COLUMN cargo_products VARCHAR(255)',
+      'ALTER TABLE kpler_vessels ADD COLUMN current_volume DECIMAL(12,2)',
+      'ALTER TABLE kpler_vessels ADD COLUMN next_dest_zone VARCHAR(255)',
+      'ALTER TABLE kpler_vessels ADD COLUMN next_dest_type VARCHAR(100)',
+      'ALTER TABLE kpler_vessels ADD COLUMN last_port_type VARCHAR(100)',
+      'ALTER TABLE kpler_vessels ADD COLUMN last_port_arrival DATETIME',
+      'ALTER TABLE kpler_vessels ADD COLUMN position_time DATETIME',
+      'ALTER TABLE kpler_vessels ADD COLUMN enriched_at DATETIME',
+      'ALTER TABLE kpler_vessels ADD COLUMN cargo_volume DECIMAL(12,2)',
+      'ALTER TABLE kpler_vessels MODIFY COLUMN vessel_availability TEXT',
+      'ALTER TABLE kpler_vessel_details MODIFY COLUMN vessel_availability TEXT',
+      'ALTER TABLE kpler_vessel_details MODIFY COLUMN last_port_availability TEXT',
+      'ALTER TABLE settings ADD COLUMN description VARCHAR(255)',
+    ];
+    for (const p of patches) {
+      try { await db.query(p); } catch (e) { /* column already exists */ }
+    }
 
     console.log('[DB] ✓ All tables initialized');
   } catch (err) {
