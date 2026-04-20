@@ -57,6 +57,7 @@ app.use('/coa', require('./src/routes/coa'));
 app.use('/settings', require('./src/routes/settings'));
 app.use('/vessel-intel', require('./src/routes/vesselIntel'));
 app.use('/availability', require('./src/routes/availability'));
+app.use('/kpler-vessels', require('./src/routes/kplerVessels'));
 
 // Root redirect
 app.get('/', async (req, res) => {

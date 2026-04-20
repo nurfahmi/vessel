@@ -1,0 +1,326 @@
+<% var pageTitle = 'Kpler Fleet — VLGC' %>
+
+<style>
+  .fleet-stat { text-align:center; padding:0.5rem; border-radius:0.5rem; background:rgba(255,255,255,0.03); }
+  .fleet-stat .val { font-size:1.5rem; font-weight:700; }
+  .fleet-stat .lbl { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em; color:#94a3b8; margin-top:2px; }
+  .state-badge { font-size:8px; padding:1px 5px; border-radius:3px; font-weight:600; text-transform:uppercase; }
+  .state-ballast { background:rgba(59,130,246,0.15); color:#93c5fd; }
+  .state-loaded { background:rgba(16,185,129,0.15); color:#6ee7b7; }
+  .status-uc { background:rgba(251,191,36,0.12); color:#fcd34d; }
+  .track-toggle { width:16px; height:16px; accent-color:#10b981; cursor:pointer; }
+  tr:hover .vessel-name { color:#67e8f9 !important; }
+  .vessel-sub { font-size:9px; color:#64748b; margin-top:1px; line-height:1.3; }
+  .vessel-sub span { margin-right:6px; }
+  .sort-btn { cursor:pointer; user-select:none; }
+  .sort-btn:hover { color:#67e8f9; }
+  .sort-btn::after { content:' ↕'; font-size:8px; opacity:0.3; }
+  .sort-btn.asc::after { content:' ↑'; opacity:1; }
+  .sort-btn.desc::after { content:' ↓'; opacity:1; }
+  .uc-row { opacity:0.5; }
+  .pos-select { background:#1e293b; color:#e2e8f0; border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:1px 2px; font-size:10px; width:120px; cursor:pointer; }
+  .pos-select.auto { color:#94a3b8; font-style:italic; }
+  .pos-select.manual { color:#67e8f9; border-color:rgba(103,232,249,0.3); }
+  .ts { font-size:8px; color:#475569; }
+  .ts-ok { color:#22c55e; }
+  .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:999; align-items:center; justify-content:center; }
+  .modal-overlay.active { display:flex; }
+  .modal-box { background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:24px; width:460px; max-width:90vw; }
+  .progress-bar { background:#0f172a; border-radius:8px; overflow:hidden; height:24px; position:relative; }
+  .progress-fill { height:100%; background:linear-gradient(90deg,#7c3aed,#a78bfa); transition:width 0.2s; border-radius:8px; }
+  .progress-text { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:11px; font-weight:600; color:#fff; }
+  .enrich-log { max-height:120px; overflow-y:auto; font-size:10px; color:#94a3b8; margin-top:12px; font-family:monospace; line-height:1.6; }
+  .enrich-log .err { color:#f87171; }
+</style>
+
+<!-- Enrich Progress Modal -->
+<div class="modal-overlay" id="enrichModal">
+  <div class="modal-box">
+    <h3 class="text-lg font-semibold text-white mb-3" id="enrichTitle">⚡ Enriching Vessels</h3>
+    <div class="progress-bar">
+      <div class="progress-fill" id="enrichBar" style="width:0%"></div>
+      <div class="progress-text" id="enrichPct">0%</div>
+    </div>
+    <p class="text-slate-400 text-xs mt-2" id="enrichStatus">Starting...</p>
+    <div class="enrich-log" id="enrichLog"></div>
+    <div class="text-right mt-4">
+      <button onclick="document.getElementById('enrichModal').classList.remove('active'); location.reload();" class="btn btn-sm" id="enrichClose" style="background:#334155;color:white;padding:4px 16px;border-radius:6px;font-size:11px;cursor:pointer;display:none;">Close & Reload</button>
+    </div>
+  </div>
+</div>
+
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="text-2xl font-bold text-white">Kpler Fleet — VLGC Vessels</h2>
+    <p class="text-slate-400 text-sm mt-1"><%= vessels.length %> vessels shown · <%= stats.tracked %> tracked</p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <a href="/kpler-vessels/panama" class="btn btn-sm" style="background:#1e3a5f;color:#93c5fd;padding:4px 12px;border-radius:6px;font-size:11px;text-decoration:none;">
+      🚢 Panama Canal
+    </a>
+    <button onclick="syncFleet(this)" class="btn btn-sm" style="background:#0f766e;color:white;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">
+      🔄 Sync Fleet
+    </button>
+    <button onclick="enrichAll(this)" class="btn btn-sm" style="background:#7c3aed;color:white;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">
+      ⚡ Enrich All
+    </button>
+    <form method="GET" class="flex items-center gap-2 flex-wrap">
+      <input type="text" name="q" value="<%= filter.q %>" placeholder="Search name, IMO..." class="input input-sm w-44">
+      <select name="state" class="input input-sm" onchange="this.form.submit()">
+        <option value="">All States</option>
+        <% states.forEach(s => { %>
+          <option value="<%= s %>" <%= filter.state === s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+      <select name="status" class="input input-sm" onchange="this.form.submit()">
+        <option value="">All Status</option>
+        <% statuses.forEach(s => { %>
+          <option value="<%= s %>" <%= filter.status === s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+      <select name="tracked" class="input input-sm" onchange="this.form.submit()">
+        <option value="">All</option>
+        <option value="1" <%= filter.tracked === '1' ? 'selected' : '' %>>Tracked ✓</option>
+        <option value="0" <%= filter.tracked === '0' ? 'selected' : '' %>>Not Tracked</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Search</button>
+      <% if (filter.q || filter.state || filter.status || filter.tracked) { %>
+        <a href="/kpler-vessels" class="btn btn-sm bg-slate-700 text-white">Clear</a>
+      <% } %>
+    </form>
+  </div>
+</div>
+
+<!-- Stats Bar -->
+<div class="grid grid-cols-7 gap-2 mb-4">
+  <div class="fleet-stat"><div class="val text-white"><%= stats.total %></div><div class="lbl">Total VLGC</div></div>
+  <div class="fleet-stat"><div class="val text-emerald-400"><%= stats.tracked %></div><div class="lbl">Tracked</div></div>
+  <div class="fleet-stat"><div class="val text-blue-400"><%= stats.ballast %></div><div class="lbl">Ballast</div></div>
+  <div class="fleet-stat"><div class="val text-green-400"><%= stats.loaded %></div><div class="lbl">Loaded</div></div>
+  <div class="fleet-stat"><div class="val text-cyan-400"><%= stats.active %></div><div class="lbl">Active</div></div>
+  <div class="fleet-stat"><div class="val text-yellow-400"><%= stats.under_construction %></div><div class="lbl">Under Constr.</div></div>
+  <div class="fleet-stat"><div class="val text-orange-400"><%= stats.floating_storage %></div><div class="lbl">Float. Storage</div></div>
+</div>
+
+<div class="card p-0 overflow-hidden">
+  <div class="overflow-x-auto max-h-[calc(100vh-280px)]">
+    <table class="data-table text-[11px]" id="fleetTable">
+      <thead>
+        <tr>
+          <th class="sticky left-0 z-20 bg-slate-900 w-10">Track</th>
+          <th class="sticky left-10 z-20 bg-slate-900 min-w-[200px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
+          <th class="sort-btn" data-col="pos" onclick="sortTable('pos')">Position</th>
+          <th class="sort-btn" data-col="ctrl" onclick="sortTable('ctrl')">Controller</th>
+          <th class="sort-btn" data-col="area" onclick="sortTable('area')">Area</th>
+          <th class="sort-btn" data-col="loc" onclick="sortTable('loc')">AIS Location</th>
+          <th class="sort-btn" data-col="eta" onclick="sortTable('eta')">Date</th>
+          <th>Cargo</th>
+          <th class="sort-btn" data-col="speed" onclick="sortTable('speed')">Speed</th>
+          <th>Synced</th>
+          <th>Enriched</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% 
+        const sorted = vessels.slice().sort((a,b) => {
+          const aUC = a.status === 'Under Construction' ? 1 : 0;
+          const bUC = b.status === 'Under Construction' ? 1 : 0;
+          return aUC - bUC;
+        });
+        sorted.forEach((v, i) => {
+          const dateVal = v.next_dest_eta || v._enrichedDate;
+        %>
+        <tr class="<%= v.tracked ? 'bg-emerald-950/20' : '' %> <%= v.status === 'Under Construction' ? 'uc-row' : '' %>"
+            data-sort-name="<%= v.name %>"
+            data-sort-pos="<%= v._position || '' %>"
+            data-sort-ctrl="<%= v.controller || '' %>"
+            data-sort-area="<%= v._area || '' %>"
+            data-sort-loc="<%= v._aisLocation || '' %>"
+            data-sort-eta="<%= dateVal ? new Date(dateVal).getTime() : 99999999999999 %>"
+            data-sort-speed="<%= v.speed || 0 %>"
+            data-uc="<%= v.status === 'Under Construction' ? '1' : '0' %>"
+        >
+          <td class="sticky left-0 bg-slate-900 text-center">
+            <input type="checkbox" class="track-toggle" <%= v.tracked ? 'checked' : '' %>
+              onchange="toggleTrack(<%= v.id %>, this)" title="Track this vessel">
+          </td>
+          <td class="sticky left-10 bg-slate-900">
+            <a href="/kpler-vessels/<%= v.kpler_id %>" class="vessel-name text-white font-medium hover:text-cyan-300 transition-colors"><%= v.name %></a>
+            <div class="vessel-sub">
+              <% if (v.imo) { %><span title="IMO"><%= v.imo %></span><% } %>
+              <% if (v.capacity_cbm) { %><span class="text-slate-400"><%= v.capacity_cbm.toLocaleString() %> cbm</span><% } %>
+              <% if (v.build_year) { %><span>BLT <%= v.build_year %></span><% } %>
+              <% if (v.flag_name) { %><span><%= v.flag_name %></span><% } %>
+              <% if (v.state) { %><span class="state-badge state-<%= v.state %>"><%= v.state %></span><% } %>
+              <% if (v.status === 'Under Construction') { %><span class="state-badge status-uc">UC</span><% } %>
+              <% if (v.is_ethylene_capable) { %><span class="text-emerald-400" title="Ethylene">⬡</span><% } %>
+              <% if (v.is_floating_storage) { %><span title="Floating Storage">📦</span><% } %>
+              <% if (v._availability) { %><span class="text-emerald-300"><%= v._availability %></span><% } %>
+            </div>
+          </td>
+          <td>
+            <select class="pos-select <%= v.position ? 'manual' : 'auto' %>" onchange="savePosition(<%= v.id %>, this)">
+              <option value="">—</option>
+              <% positionOptions.forEach(p => { %>
+                <option value="<%= p %>" <%= v._position === p ? 'selected' : '' %>><%= p %></option>
+              <% }) %>
+            </select>
+          </td>
+          <td class="text-blue-300 text-[10px]"><%= v.controller || '' %></td>
+          <td class="text-amber-300 text-[10px]"><%= v._area || '' %></td>
+          <td class="text-cyan-300 text-[10px]"><%= v._aisLocation || '' %></td>
+          <td class="text-slate-400 text-[10px] whitespace-nowrap">
+            <% if (dateVal) { 
+              const d = new Date(dateVal); %>
+              <%= d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) %> <%= d.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'}) %>
+              <% if (v._enrichedDate && !v.next_dest_eta) { %><span class="text-purple-400" title="From enrichment">⚡</span><% } %>
+            <% } %>
+          </td>
+          <td class="text-slate-400 text-[10px]"><%= v.cargo_products || '' %></td>
+          <td class="text-slate-500">
+            <% const spd = v.speed || v._enrichedSpeed; %>
+            <% if (spd) { %><%= parseFloat(spd).toFixed(1) %><% if (v._enrichedSpeed && !v.speed) { %><span class="text-purple-400" title="From enrichment">⚡</span><% } %><% } %>
+          </td>
+          <td class="ts whitespace-nowrap">
+            <% if (v.synced_at) { %>
+              <span class="ts-ok"><%= new Date(v.synced_at).toLocaleDateString('en-GB', {day:'2-digit',month:'short'}) %></span>
+            <% } else { %>—<% } %>
+          </td>
+          <td class="ts whitespace-nowrap">
+            <% if (v.enriched_at) { %>
+              <span class="ts-ok"><%= new Date(v.enriched_at).toLocaleDateString('en-GB', {day:'2-digit',month:'short'}) %></span>
+            <% } else { %>—<% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let currentSort = { col: null, dir: null };
+
+function toggleTrack(id, checkbox) {
+  fetch('/kpler-vessels/api/toggle-tracked/' + id, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      checkbox.checked = d.tracked;
+      checkbox.closest('tr').classList.toggle('bg-emerald-950/20', d.tracked);
+    });
+}
+
+function savePosition(id, select) {
+  fetch('/kpler-vessels/api/save-position/' + id, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ position: select.value })
+  }).then(r => r.json()).then(d => {
+    select.className = 'pos-select ' + (select.value ? 'manual' : 'auto');
+    select.closest('tr').setAttribute('data-sort-pos', select.value);
+  });
+}
+
+function sortTable(col) {
+  const tbody = document.querySelector('#fleetTable tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  if (currentSort.col === col) {
+    currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort.col = col;
+    currentSort.dir = 'asc';
+  }
+
+  document.querySelectorAll('.sort-btn').forEach(b => {
+    b.classList.remove('asc','desc');
+    if (b.dataset.col === col) b.classList.add(currentSort.dir);
+  });
+
+  const isNum = ['eta','speed'].includes(col);
+
+  rows.sort((a, b) => {
+    const aUC = a.dataset.uc === '1' ? 1 : 0;
+    const bUC = b.dataset.uc === '1' ? 1 : 0;
+    if (aUC !== bUC) return aUC - bUC;
+
+    let va = a.getAttribute('data-sort-' + col) || '';
+    let vb = b.getAttribute('data-sort-' + col) || '';
+    if (isNum) { va = parseFloat(va)||0; vb = parseFloat(vb)||0; }
+    else { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+    let r = va < vb ? -1 : va > vb ? 1 : 0;
+    return currentSort.dir === 'desc' ? -r : r;
+  });
+
+  rows.forEach(r => tbody.appendChild(r));
+}
+
+async function syncFleet(btn) {
+  btn.disabled = true; btn.textContent = '⏳ Syncing...';
+  try {
+    const r = await fetch('/kpler-vessels/api/sync-fleet', { method: 'POST' });
+    const d = await r.json();
+    if (d.error) { alert('Error: ' + d.error); return; }
+    alert(`✓ Synced ${d.synced}/${d.total} vessels (${d.failed} failed)`);
+    location.reload();
+  } catch(e) { alert('Sync failed: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '🔄 Sync Fleet'; }
+}
+
+async function enrichAll(btn) {
+  btn.disabled = true;
+  const modal = document.getElementById('enrichModal');
+  const bar = document.getElementById('enrichBar');
+  const pct = document.getElementById('enrichPct');
+  const status = document.getElementById('enrichStatus');
+  const log = document.getElementById('enrichLog');
+  const closeBtn = document.getElementById('enrichClose');
+  const title = document.getElementById('enrichTitle');
+
+  modal.classList.add('active');
+  bar.style.width = '0%';
+  pct.textContent = '0%';
+  status.textContent = 'Connecting...';
+  log.innerHTML = '';
+  closeBtn.style.display = 'none';
+  title.textContent = '⚡ Enriching Vessels';
+
+  const es = new EventSource('/kpler-vessels/api/enrich-all');
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.type === 'start') {
+      status.textContent = `Processing 0/${d.total} vessels...`;
+    } else if (d.type === 'progress') {
+      const processed = d.enriched + d.failed + (d.skipped||0);
+      const p = Math.round(processed / d.total * 100);
+      bar.style.width = p + '%';
+      pct.textContent = p + '%';
+      status.textContent = `Processing ${processed}/${d.total} — ${d.name}`;
+      if (d.skip) {
+        log.innerHTML += `<div style="color:#64748b">⏭ ${d.name} (recent)</div>`;
+      } else if (d.error) {
+        log.innerHTML += `<div class="err">✗ ${d.name}: ${d.error}</div>`;
+      } else {
+        log.innerHTML += `<div>✓ ${d.name}</div>`;
+      }
+      log.scrollTop = log.scrollHeight;
+    } else if (d.type === 'done') {
+      bar.style.width = '100%';
+      pct.textContent = '100%';
+      bar.style.background = 'linear-gradient(90deg,#22c55e,#4ade80)';
+      title.textContent = '✅ Enrichment Complete';
+      status.textContent = `Done — ${d.enriched} enriched, ${d.skipped||0} skipped, ${d.failed} failed out of ${d.total}`;
+      closeBtn.style.display = 'inline-block';
+      btn.disabled = false;
+      es.close();
+    } else if (d.type === 'error') {
+      title.textContent = '❌ Enrichment Error';
+      status.textContent = d.message;
+      closeBtn.style.display = 'inline-block';
+      btn.disabled = false;
+      es.close();
+    }
+  };
+  es.onerror = () => { es.close(); closeBtn.style.display = 'inline-block'; btn.disabled = false; };
+}
+</script>

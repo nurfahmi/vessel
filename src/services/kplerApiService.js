@@ -582,6 +582,153 @@ async function fetchVoyages(kplerVesselId, size = 15) {
   return data.data.voyages.items || [];
 }
 
+/**
+ * Sync all VLGC vessels from /api/vessels into kpler_fleet table
+ */
+async function syncFleet(onProgress) {
+  const notify = onProgress || (() => {});
+  notify({ phase: 'fetch', message: 'Fetching fleet from Kpler API...' });
+
+  const allVessels = await kplerFetch('/vessels');
+  const vlgc = allVessels.filter(v => v.vesselTypeClass === 'VLGC');
+  
+  const results = { synced: 0, failed: 0, total: vlgc.length };
+
+  for (const v of vlgc) {
+    try {
+      const lp = v.lastPosition || {};
+      const geo = lp.geo || {};
+      const nd = v.nextDestination || {};
+      const ais = v.lastRawAisSignals || {};
+      const cm = v.cargoMetrics || {};
+      const cc = lp.currentCargo || {};
+      const pci = v.portCallInfo || {};
+      const pc = pci.lastPortCall || {};
+      const build = v.build || {};
+      const engine = v.engineMetrics || {};
+
+      await db.query(`INSERT INTO kpler_fleet (
+        kpler_id, name, imo, mmsi, call_sign, vessel_type_class, state, status,
+        flag_name, build_year, capacity_cbm, deadweight,
+        is_ethylene_capable, is_floating_storage, is_open,
+        cargo_type, number_tanks, statcode, commodity_types, classification,
+        current_commodity_type,
+        lat, lon, speed, course, draught, heading, position_time,
+        ais_destination, ais_eta,
+        next_dest_zone, next_dest_zone_id, next_dest_installation, next_dest_installation_id,
+        next_dest_eta, next_dest_source,
+        loaded, cargo_volume, cargo_mass, cargo_products,
+        controller, last_port, last_port_zone, last_port_country, synced_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ON DUPLICATE KEY UPDATE
+        name=VALUES(name), state=VALUES(state), status=VALUES(status),
+        flag_name=VALUES(flag_name), is_open=VALUES(is_open),
+        lat=VALUES(lat), lon=VALUES(lon), speed=VALUES(speed), course=VALUES(course),
+        draught=VALUES(draught), heading=VALUES(heading), position_time=VALUES(position_time),
+        ais_destination=VALUES(ais_destination), ais_eta=VALUES(ais_eta),
+        next_dest_zone=VALUES(next_dest_zone), next_dest_zone_id=VALUES(next_dest_zone_id),
+        next_dest_installation=VALUES(next_dest_installation), next_dest_installation_id=VALUES(next_dest_installation_id),
+        next_dest_eta=VALUES(next_dest_eta), next_dest_source=VALUES(next_dest_source),
+        loaded=VALUES(loaded), cargo_volume=VALUES(cargo_volume), cargo_mass=VALUES(cargo_mass),
+        cargo_products=VALUES(cargo_products), controller=VALUES(controller),
+        last_port=VALUES(last_port), last_port_zone=VALUES(last_port_zone), last_port_country=VALUES(last_port_country),
+        synced_at=VALUES(synced_at)`, [
+        v.id, v.name, v.imo||null, v.mmsi||null, v.callSign||null, v.vesselTypeClass,
+        v.state||null, v.status||null, v.flagName||null,
+        build.buildYear||null, cm.capacity||null, v.deadWeight||null,
+        v.isEthyleneCapable?1:0, v.isFloatingStorage?1:0, v.isOpen?1:0,
+        cm.cargoType||null, cm.numberTanks||null, v.statcode?.code||null,
+        (v.commodityTypes||[]).join(','), v.classification||null, v.currentCommodityType||null,
+        geo.lat||null, geo.lon||null, lp.speed||null, lp.course||null,
+        lp.draught||null, lp.heading||null, toMysqlDate(lp.receivedTime||v.timestamp),
+        ais.rawDestination||null, toMysqlDate(ais.eta),
+        nd.zone?.name||null, nd.zone?.id||null, nd.installation?.name||null, nd.installation?.id||null,
+        toMysqlDate(nd.eta), nd.source||null,
+        cc.loaded?1:0, lp.quantity?.volume||null, lp.quantity?.mass||null,
+        (cc.products||[]).map(p=>p.name).join(', ')||null,
+        v.vesselController?.default?.name || pc.vesselController?.name || null,
+        pc.installation?.name||null, pc.zone?.name||null, pc.zone?.country?.name||null,
+        toMysqlDate(v.timestamp)
+      ]);
+      results.synced++;
+    } catch(e) {
+      results.failed++;
+      if (results.failed <= 3) console.error('[syncFleet]', v.name, e.message?.substring(0,80));
+    }
+  }
+  notify({ phase: 'done', ...results });
+  return results;
+}
+
+/**
+ * Fetch and save individual vessel detail into kpler_vessel_details
+ */
+async function fetchVesselDetail(kplerId) {
+  const data = await kplerFetch(`/vessels/${kplerId}`);
+  
+  const players = data.players || {};
+  const build = data.build || {};
+  const engine = data.engineMetrics || {};
+  const pcm = data.portCallsMetrics || {};
+  const pci = data.portCallInfo || {};
+  const lpc = pci.lastPortCall || {};
+
+  await db.query(`INSERT INTO kpler_vessel_details (
+    kpler_id, build_country, build_month, builder, gross_tonnage, beam,
+    max_load_cbm, horse_power, max_speed,
+    managers, owners, builders, commercial_managers, operators, beneficial_owners, insurers,
+    hire_rate, unloads_this_year, unloaded_tons,
+    charter_contracts, vessel_availability, vessel_availabilities, position_snapshot,
+    last_port_zone, last_port_install, last_port_arrival, last_port_departure, last_port_availability,
+    port_call_info, fetched_at
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())
+  ON DUPLICATE KEY UPDATE
+    build_country=VALUES(build_country), builder=VALUES(builder), gross_tonnage=VALUES(gross_tonnage),
+    beam=VALUES(beam), max_load_cbm=VALUES(max_load_cbm),
+    horse_power=VALUES(horse_power), max_speed=VALUES(max_speed),
+    managers=VALUES(managers), owners=VALUES(owners), builders=VALUES(builders),
+    commercial_managers=VALUES(commercial_managers), operators=VALUES(operators),
+    beneficial_owners=VALUES(beneficial_owners), insurers=VALUES(insurers),
+    hire_rate=VALUES(hire_rate), unloads_this_year=VALUES(unloads_this_year),
+    unloaded_tons=VALUES(unloaded_tons),
+    charter_contracts=VALUES(charter_contracts),
+    vessel_availability=VALUES(vessel_availability),
+    vessel_availabilities=VALUES(vessel_availabilities),
+    position_snapshot=VALUES(position_snapshot),
+    last_port_zone=VALUES(last_port_zone), last_port_install=VALUES(last_port_install),
+    last_port_arrival=VALUES(last_port_arrival), last_port_departure=VALUES(last_port_departure),
+    last_port_availability=VALUES(last_port_availability),
+    port_call_info=VALUES(port_call_info),
+    fetched_at=NOW()`, [
+    kplerId,
+    build.buildCountry||null, build.buildMonth||null, data.builder||null,
+    typeof data.grossTonnage === 'number' ? data.grossTonnage : null,
+    typeof data.beam === 'number' ? data.beam : null,
+    data.maxLoad?.value||null,
+    engine.horsePower||null, engine.maxSpeed||null,
+    JSON.stringify(players.managers||[]),
+    JSON.stringify(players.owners||[]),
+    JSON.stringify(players.builders||[]),
+    JSON.stringify(players.commercialManagers||[]),
+    JSON.stringify(players.operators||[]),
+    JSON.stringify(players.beneficialOwners||[]),
+    JSON.stringify(players.insurers||[]),
+    pcm.hireRate||null, pcm.unloads||null, pcm.unloadedThisYearInTon||null,
+    JSON.stringify(data.charterContracts||[]),
+    JSON.stringify(data.vesselAvailability||null),
+    JSON.stringify(data.vesselAvailabilities||[]),
+    JSON.stringify(data.positionSnapshot||null),
+    lpc.zone?.name||null,
+    lpc.installation?.name||null,
+    toMysqlDate(lpc.estimatedBerthArrival),
+    toMysqlDate(lpc.estimatedBerthDeparture),
+    lpc.vesselAvailability||null,
+    JSON.stringify(pci)
+  ]);
+
+  return data;
+}
+
 module.exports = {
   getAccessToken,
   setAccessToken,
@@ -590,6 +737,8 @@ module.exports = {
   extractTrackerData,
   syncVessel,
   syncAll,
+  syncFleet,
+  fetchVesselDetail,
   enrichAll,
   kplerFetch,
   toMysqlDate

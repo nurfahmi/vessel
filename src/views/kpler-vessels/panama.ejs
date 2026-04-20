@@ -1,0 +1,188 @@
+<% var pageTitle = 'Panama Canal Transit — VLGC' %>
+
+<style>
+  .canal-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:16px; max-height:calc(100vh - 240px); display:flex; flex-direction:column; }
+  .canal-header { font-size:1.1rem; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .canal-list { overflow-y:auto; flex:1; }
+  .canal-header .badge { font-size:11px; padding:2px 8px; border-radius:12px; font-weight:600; }
+  .pacific { border-left:3px solid #3b82f6; }
+  .pacific .badge { background:rgba(59,130,246,0.2); color:#93c5fd; }
+  .atlantic { border-left:3px solid #f59e0b; }
+  .atlantic .badge { background:rgba(245,158,11,0.2); color:#fcd34d; }
+  .at-canal { border-left:3px solid #10b981; }
+  .at-canal .badge { background:rgba(16,185,129,0.2); color:#6ee7b7; }
+  .vessel-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:11px; }
+  .vessel-row:last-child { border:none; }
+  .v-name { color:#e2e8f0; font-weight:600; min-width:140px; }
+  .v-name a { color:#e2e8f0; text-decoration:none; }
+  .v-name a:hover { color:#67e8f9; }
+  .v-state { font-size:9px; padding:1px 6px; border-radius:3px; font-weight:600; text-transform:uppercase; }
+  .v-state.ballast { background:rgba(59,130,246,0.15); color:#93c5fd; }
+  .v-state.loaded { background:rgba(16,185,129,0.15); color:#6ee7b7; }
+  .v-meta { color:#94a3b8; font-size:10px; }
+  .v-status { font-weight:600; }
+  .v-status.anchored { color:#f87171; }
+  .v-status.transiting { color:#4ade80; }
+  .summary-stat { text-align:center; padding:12px; border-radius:8px; background:rgba(255,255,255,0.03); }
+  .summary-stat .val { font-size:1.8rem; font-weight:800; }
+  .summary-stat .lbl { font-size:10px; text-transform:uppercase; color:#94a3b8; margin-top:2px; }
+  .data-src { font-size:8px; color:#475569; font-style:italic; }
+</style>
+
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <h2 class="text-2xl font-bold text-white">🚢 Panama Canal Transit</h2>
+    <p class="text-slate-400 text-sm mt-1">VLGC vessels heading to/at Panama Canal · Data from Kpler AIS + destinations</p>
+  </div>
+  <a href="/kpler-vessels" class="btn btn-sm" style="background:#334155;color:white;padding:4px 12px;border-radius:6px;font-size:11px;text-decoration:none;">← Back to Fleet</a>
+</div>
+
+<!-- Summary Stats -->
+<div class="grid grid-cols-5 gap-3 mb-5">
+  <div class="summary-stat"><div class="val text-white"><%= vessels.length %></div><div class="lbl">Total</div></div>
+  <div class="summary-stat"><div class="val text-emerald-400"><%= atCanal.length %></div><div class="lbl">At Canal (&lt;100 NM)</div></div>
+  <div class="summary-stat"><div class="val text-blue-400"><%= pacificApproach.length %></div><div class="lbl">Pacific En Route</div></div>
+  <div class="summary-stat"><div class="val text-amber-400"><%= atlanticApproach.length %></div><div class="lbl">Atlantic Side</div></div>
+  <div class="summary-stat"><div class="val text-slate-400"><%= vessels.filter(v=>v.state==='loaded').length %> / <%= vessels.filter(v=>v.state==='ballast').length %></div><div class="lbl">Loaded / Ballast</div></div>
+</div>
+
+<!-- Methodology -->
+<details style="margin-bottom:16px;">
+  <summary style="cursor:pointer;font-size:12px;color:#64748b;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.05);">
+    ℹ️ How is this data calculated?
+  </summary>
+  <div style="padding:12px;background:rgba(255,255,255,0.02);border-radius:0 0 8px 8px;border:1px solid rgba(255,255,255,0.05);border-top:none;font-size:11px;color:#94a3b8;line-height:1.8;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <strong style="color:#e2e8f0;">📡 Data Source</strong>
+        <div>All vessel positions, speeds, and destinations come from <strong style="color:#67e8f9;">Kpler API</strong> which aggregates AIS (Automatic Identification System) data from satellite and terrestrial receivers.</div>
+      </div>
+      <div>
+        <strong style="color:#e2e8f0;">📐 Distance (NM)</strong>
+        <div>Straight-line distance from vessel's current GPS position to Panama Canal entrance (9.0°N, 79.5°W) using <strong style="color:#67e8f9;">Haversine formula</strong>. Actual sailing distance may be 10-20% longer due to routing.</div>
+      </div>
+      <div>
+        <strong style="color:#10b981;">⚓ At Canal (&lt;100 NM)</strong>
+        <div>Vessels within 100 nautical miles of the canal entrance. <span style="color:#f87171;">Anchored/Waiting</span> = speed &lt; 2 knots. <span style="color:#4ade80;">Transiting</span> = speed ≥ 2 knots. Side (Balboa/Cristobal) determined by longitude relative to canal axis.</div>
+      </div>
+      <div>
+        <strong style="color:#3b82f6;">🌊 Pacific → Canal</strong>
+        <div>Vessels west of Panama (Americas Pacific coast) or in East Asia/Far East whose Kpler destination is set to "Panama Canal". Sorted by distance — closest first.</div>
+      </div>
+      <div>
+        <strong style="color:#f59e0b;">🌍 Atlantic Side</strong>
+        <div>Vessels east of Panama in the Caribbean/Atlantic. These have either just crossed the canal or are approaching from the Atlantic side.</div>
+      </div>
+      <div>
+        <strong style="color:#e2e8f0;">⏱️ Days to Canal</strong>
+        <div>Calculated as: <code style="color:#67e8f9;">distance (NM) ÷ (speed × 24h)</code>. Only shown when vessel has speed &gt; 0. This is an estimate — actual transit time depends on weather, routing, and canal scheduling.</div>
+      </div>
+      <div>
+        <strong style="color:#e2e8f0;">⏳ Wait Days</strong>
+        <div>Only shown for vessels whose Kpler enrichment data confirms they are <strong>at a Panama-area port</strong>. Calculated from the <code style="color:#67e8f9;">estimatedBerthArrival</code> date at Panama. Not shown if data is unavailable — we do not guess.</div>
+      </div>
+      <div>
+        <strong style="color:#e2e8f0;">🔄 Update Frequency</strong>
+        <div>AIS positions update every few minutes to hours depending on satellite coverage. Fleet data synced via "Sync Fleet" button. Enrichment data (wait days, port calls) via "Enrich All" button.</div>
+      </div>
+    </div>
+  </div>
+</details>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+  <!-- AT CANAL (<100 NM) -->
+  <div class="canal-card at-canal">
+    <div class="canal-header">
+      <span>⚓ At Canal</span>
+      <span class="badge"><%= atCanal.length %></span>
+      <span class="data-src">within 100 NM</span>
+    </div>
+    <div class="canal-list">
+    <% if (!atCanal.length) { %><p class="v-meta">No vessels at canal</p><% } %>
+    <% atCanal.forEach(v => { %>
+      <div class="vessel-row">
+        <div>
+          <div class="v-name"><a href="/kpler-vessels/<%= v.kpler_id %>"><%= v.name %></a></div>
+          <div class="v-meta">
+            <span class="v-state <%= v.state %>"><%= v.state %></span>
+            · <span class="v-status <%= v._status === 'Anchored/Waiting' ? 'anchored' : 'transiting' %>"><%= v._status %></span>
+            <% if (v.speed !== null && v.speed !== undefined) { %> · <%= parseFloat(v.speed).toFixed(1) %> kn<% } %>
+            · <%= v._distNM %> NM
+          </div>
+          <div class="v-meta">
+            <span class="text-cyan-300"><%= v._side %></span>
+            <% if (v._waitDays !== undefined) { %>
+              · <span style="font-weight:700;color:<%= v._waitDays >= 5 ? '#f87171' : v._waitDays >= 2 ? '#fbbf24' : '#4ade80' %>"><%= v._waitDays %>d waiting</span>
+              <span class="data-src">(arrived <%= new Date(v._arrivalAtCanal).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) %>)</span>
+            <% } else if (v._fromPort) { %>
+              · <span class="data-src">from <%= v._fromPort %> (dept <%= new Date(v._departedPrevPort).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) %>)</span>
+            <% } %>
+          </div>
+          <div class="v-meta">
+            <% if (v.next_dest_eta) { %>ETA: <%= new Date(v.next_dest_eta).toLocaleDateString('en-GB', {day:'2-digit',month:'short'}) %> · <% } %>
+            <% if (v.cargo_products) { %><%= v.cargo_products %><% } %>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+    </div>
+  </div>
+
+  <!-- PACIFIC EN ROUTE -->
+  <div class="canal-card pacific">
+    <div class="canal-header">
+      <span>🌊 Pacific → Canal</span>
+      <span class="badge"><%= pacificApproach.length %></span>
+      <span class="data-src">sorted by distance</span>
+    </div>
+    <div class="canal-list">
+    <% if (!pacificApproach.length) { %><p class="v-meta">No vessels en route</p><% } %>
+    <% pacificApproach.forEach(v => { %>
+      <div class="vessel-row">
+        <div>
+          <div class="v-name"><a href="/kpler-vessels/<%= v.kpler_id %>"><%= v.name %></a></div>
+          <div class="v-meta">
+            <span class="v-state <%= v.state %>"><%= v.state %></span>
+            <% if (v.speed) { %> · <%= parseFloat(v.speed).toFixed(1) %> kn<% } %>
+            · <strong><%= v._distNM.toLocaleString() %> NM</strong>
+            <% if (v._daysToCanal !== null) { %> · ~<%= v._daysToCanal %>d at current speed<% } %>
+          </div>
+          <div class="v-meta">
+            <% if (v.next_dest_eta) { %>ETA: <%= new Date(v.next_dest_eta).toLocaleDateString('en-GB', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) %> · <% } %>
+            <% if (v.cargo_products) { %><%= v.cargo_products %><% } %>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+    </div>
+  </div>
+
+  <!-- ATLANTIC SIDE -->
+  <div class="canal-card atlantic">
+    <div class="canal-header">
+      <span>🌍 Atlantic Side</span>
+      <span class="badge"><%= atlanticApproach.length %></span>
+      <span class="data-src">sorted by distance</span>
+    </div>
+    <div class="canal-list">
+    <% if (!atlanticApproach.length) { %><p class="v-meta">No vessels</p><% } %>
+    <% atlanticApproach.forEach(v => { %>
+      <div class="vessel-row">
+        <div>
+          <div class="v-name"><a href="/kpler-vessels/<%= v.kpler_id %>"><%= v.name %></a></div>
+          <div class="v-meta">
+            <span class="v-state <%= v.state %>"><%= v.state %></span>
+            <% if (v.speed) { %> · <%= parseFloat(v.speed).toFixed(1) %> kn<% } %>
+            · <%= v._distNM.toLocaleString() %> NM
+          </div>
+          <div class="v-meta">
+            <% if (v.next_dest_eta) { %>ETA: <%= new Date(v.next_dest_eta).toLocaleDateString('en-GB', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) %> · <% } %>
+            <% if (v.cargo_products) { %><%= v.cargo_products %><% } %>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+    </div>
+  </div>
+
+</div>

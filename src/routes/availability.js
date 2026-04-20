@@ -88,7 +88,8 @@ router.get('/', isAuthenticated, async (req, res) => {
         const zoneArea = resolveArea(zoneDest);
         const isTransit = transitZones.has((zoneArea || zoneDest).toLowerCase());
 
-        if (isTransit && aisDest) {
+        // Transit shortcut only for ballast — loaded vessels use manual position for open area
+        if (isTransit && aisDest && e.state === 'ballast') {
           area = resolveArea(aisDest);
           usedDest = aisDest;
           e._destSource = 'smart';

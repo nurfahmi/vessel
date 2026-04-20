@@ -64,11 +64,12 @@ const vesselAnalysisController = {
       try {
         vessel = await kplerApi.fetchVessel(kplerId);
       } catch (e) {
-        // Fallback: use cached data from kpler_vessels
-        const [rows] = await db.query('SELECT * FROM kpler_vessels WHERE kpler_id = ?', [kplerId]);
+        // Fallback: use cached data from kpler_vessels or kpler_fleet
+        let [rows] = await db.query('SELECT * FROM kpler_vessels WHERE kpler_id = ?', [kplerId]);
+        if (!rows.length) [rows] = await db.query('SELECT * FROM kpler_fleet WHERE kpler_id = ?', [kplerId]);
         if (!rows.length) {
           req.flash('error', 'Vessel not found');
-          return res.redirect('/kpler');
+          return res.redirect(req.headers.referer || '/kpler-vessels');
         }
         return res.render('vessel-intel/index', { vessel: null, cached: rows[0], insights: [], voyages: [] });
       }

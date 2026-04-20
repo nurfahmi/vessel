@@ -1,0 +1,141 @@
+<% var pageTitle = vessel.name + ' — Vessel Detail' %>
+
+<style>
+  .detail-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:0.75rem; padding:1.25rem; }
+  .detail-card h3 { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:0.75rem; }
+  .detail-row { display:flex; justify-content:space-between; padding:0.35rem 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .detail-row:last-child { border:0; }
+  .detail-label { color:#94a3b8; font-size:0.75rem; }
+  .detail-value { color:#e2e8f0; font-size:0.75rem; font-weight:500; text-align:right; }
+  .state-badge { font-size:10px; padding:3px 8px; border-radius:4px; font-weight:600; text-transform:uppercase; }
+  .state-ballast { background:rgba(59,130,246,0.15); color:#93c5fd; }
+  .state-loaded { background:rgba(16,185,129,0.15); color:#6ee7b7; }
+</style>
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <div class="flex items-center gap-3">
+      <a href="/kpler-vessels" class="text-slate-500 hover:text-white transition-colors">← Fleet</a>
+      <h2 class="text-2xl font-bold text-white"><%= vessel.name %></h2>
+      <% if (vessel.state) { %>
+        <span class="state-badge state-<%= vessel.state %>"><%= vessel.state %></span>
+      <% } %>
+      <% if (vessel.tracked) { %>
+        <span class="text-emerald-400 text-sm">● Tracked</span>
+      <% } %>
+    </div>
+    <p class="text-slate-400 text-sm mt-1">
+      IMO: <%= vessel.imo || '—' %> · MMSI: <%= vessel.mmsi || '—' %> · Kpler ID: <%= vessel.kpler_id %>
+    </p>
+  </div>
+  <button onclick="fetchDetail(<%= vessel.kpler_id %>, this)" class="btn btn-sm" style="background:#0f766e;color:white;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">
+    🔄 Fetch Detail from API
+  </button>
+</div>
+
+<script>
+async function fetchDetail(kplerId, btn) {
+  btn.disabled = true; btn.textContent = '⏳ Fetching...';
+  try {
+    const r = await fetch('/kpler-vessels/api/fetch-detail/' + kplerId, { method: 'POST' });
+    const d = await r.json();
+    if (d.error) { alert('Error: ' + d.error); return; }
+    location.reload();
+  } catch(e) { alert('Failed: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '🔄 Fetch Detail from API'; }
+}
+</script>
+
+<div class="grid grid-cols-4 gap-4">
+  <!-- Core Info -->
+  <div class="detail-card">
+    <h3>Vessel Info</h3>
+    <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value"><%= vessel.name %></span></div>
+    <div class="detail-row"><span class="detail-label">IMO</span><span class="detail-value"><%= vessel.imo || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">MMSI</span><span class="detail-value"><%= vessel.mmsi || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Call Sign</span><span class="detail-value"><%= vessel.call_sign || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Flag</span><span class="detail-value"><%= vessel.flag_name || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value"><%= vessel.status || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Classification</span><span class="detail-value"><%= vessel.classification || '—' %></span></div>
+  </div>
+
+  <!-- Capacity -->
+  <div class="detail-card">
+    <h3>Capacity & Build</h3>
+    <div class="detail-row"><span class="detail-label">CBM</span><span class="detail-value"><%= vessel.capacity_cbm ? vessel.capacity_cbm.toLocaleString() : '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">DWT</span><span class="detail-value"><%= vessel.deadweight ? vessel.deadweight.toLocaleString() : '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Built</span><span class="detail-value"><%= vessel.build_year || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Cargo Type</span><span class="detail-value"><%= vessel.cargo_type || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Tanks</span><span class="detail-value"><%= vessel.number_tanks || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Ethylene</span><span class="detail-value"><%= vessel.is_ethylene_capable ? '✓ Yes' : 'No' %></span></div>
+    <div class="detail-row"><span class="detail-label">Float. Storage</span><span class="detail-value"><%= vessel.is_floating_storage ? '✓ Yes' : 'No' %></span></div>
+    <% if (detail) { %>
+      <div class="detail-row"><span class="detail-label">Beam</span><span class="detail-value"><%= detail.beam || '—' %> m</span></div>
+      <div class="detail-row"><span class="detail-label">Gross Tonnage</span><span class="detail-value"><%= detail.gross_tonnage ? detail.gross_tonnage.toLocaleString() : '—' %></span></div>
+      <div class="detail-row"><span class="detail-label">Max Load</span><span class="detail-value"><%= detail.max_load_cbm ? detail.max_load_cbm.toLocaleString() : '—' %> cbm</span></div>
+    <% } %>
+  </div>
+
+  <!-- Position -->
+  <div class="detail-card">
+    <h3>Current Position</h3>
+    <div class="detail-row"><span class="detail-label">State</span><span class="detail-value"><%= vessel.state || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Speed</span><span class="detail-value"><%= vessel.speed ? vessel.speed + ' kn' : '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Draught</span><span class="detail-value"><%= vessel.draught ? vessel.draught + ' m' : '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Coordinates</span><span class="detail-value"><%= vessel.lat ? parseFloat(vessel.lat).toFixed(4) + ', ' + parseFloat(vessel.lon).toFixed(4) : '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Last Seen</span><span class="detail-value"><%= vessel.position_time ? new Date(vessel.position_time).toLocaleString('en-GB') : '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Last Port</span><span class="detail-value"><%= vessel.last_port || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Country</span><span class="detail-value"><%= vessel.last_port_country || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Cargo</span><span class="detail-value"><%= vessel.cargo_products || '—' %></span></div>
+    <% if (detail) { %>
+      <div class="detail-row"><span class="detail-label">HP</span><span class="detail-value"><%= detail.horse_power ? detail.horse_power.toLocaleString() : '—' %></span></div>
+      <div class="detail-row"><span class="detail-label">Max Speed</span><span class="detail-value"><%= detail.max_speed || '—' %> kn</span></div>
+    <% } %>
+  </div>
+
+  <!-- Destination -->
+  <div class="detail-card">
+    <h3>Destination & Controller</h3>
+    <div class="detail-row"><span class="detail-label">Controller</span><span class="detail-value text-blue-300"><%= vessel.controller || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">AIS Dest</span><span class="detail-value text-amber-300"><%= vessel.ais_destination || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">AIS ETA</span><span class="detail-value"><%= vessel.ais_eta ? new Date(vessel.ais_eta).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Zone</span><span class="detail-value text-cyan-300"><%= vessel.next_dest_zone || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Installation</span><span class="detail-value"><%= vessel.next_dest_installation || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Next ETA</span><span class="detail-value"><%= vessel.next_dest_eta ? new Date(vessel.next_dest_eta).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Source</span><span class="detail-value"><%= vessel.next_dest_source || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Is Open</span><span class="detail-value"><%= vessel.is_open ? '✓ Yes' : 'No' %></span></div>
+  </div>
+</div>
+
+<% if (detail) { %>
+<div class="grid grid-cols-2 gap-4 mt-4">
+  <!-- Players -->
+  <div class="detail-card">
+    <h3>Players</h3>
+    <% const players = ['managers','commercial_managers','owners','operators','beneficial_owners','builders','insurers'];
+       players.forEach(role => { 
+         const list = detail[role] ? (typeof detail[role] === 'string' ? JSON.parse(detail[role]) : detail[role]) : [];
+         if (list && list.length) { %>
+      <div class="detail-row">
+        <span class="detail-label"><%= role.replace(/_/g,' ') %></span>
+        <span class="detail-value"><%= list.map(p => p.name || p).join(', ') %></span>
+      </div>
+    <%   }
+       }) %>
+  </div>
+
+  <!-- Port Metrics -->
+  <div class="detail-card">
+    <h3>Port Call Metrics</h3>
+    <div class="detail-row"><span class="detail-label">Build Country</span><span class="detail-value"><%= detail.build_country || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Builder</span><span class="detail-value"><%= detail.builder || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Hire Rate</span><span class="detail-value"><%= detail.hire_rate || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Unloads This Year</span><span class="detail-value"><%= detail.unloads_this_year || '—' %></span></div>
+    <div class="detail-row"><span class="detail-label">Unloaded Tons</span><span class="detail-value"><%= detail.unloaded_tons ? parseFloat(detail.unloaded_tons).toLocaleString() : '—' %></span></div>
+  </div>
+</div>
+<% } else { %>
+<div class="detail-card mt-4 text-center text-slate-500">
+  <p>No detailed data fetched yet. Trigger individual vessel sync to populate builder, players, charter, and availability data.</p>
+</div>
+<% } %>
