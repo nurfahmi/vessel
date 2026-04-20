@@ -19,7 +19,7 @@ router.get('/', isAuthenticated, async (req, res) => {
              f.position_time,
              f.loaded, f.lat, f.lon, f.speed, f.draught,
              d.last_port_departure as position_zones,
-             f.position as fleet_position,
+             f.position as fleet_position, f.auto_position,
              v.us_trade, v.chinese_built, v.panamax, v.scrubber_df, v.deck_tank,
              v.kpler_vessel_id
       FROM kpler_fleet f
@@ -34,28 +34,6 @@ router.get('/', isAuthenticated, async (req, res) => {
     const lookup = await buildLookupMap();
     const destinations = lookup.destinations;
 
-    // Port areas for auto-resolving position
-    const [portAreas] = await db.query('SELECT location_name, area FROM port_areas');
-    const areaMap = {};
-    portAreas.forEach(r => { areaMap[r.location_name.toLowerCase().trim()] = r.area; });
-
-    // Same auto-resolve as kpler-vessels page
-    function resolvePosition(area, state) {
-      if (!area || area === 'No AIS') return '';
-      const a = area.trim();
-      const map = {
-        'USG': 'loads USG', 'AG': 'loads AG', 'WAF': 'loads WAF',
-        'Panama': 'loads USG', 'Cape (as proxy)': 'loads USG',
-        'Gibraltar': 'Gibraltar', 'Caribs': 'Caribs', 'Cayman': 'Cayman',
-        'Mexico': 'Mexico', 'Ocoa': 'Ocoa', 'East Med': 'East Med',
-        'Richards Bay': 'Richards Bay',
-      };
-      if (map[a]) return map[a];
-      const plusMatch = a.match(/^(.+?)\s*[\+\-]\s*\d/);
-      if (plusMatch) return plusMatch[1].trim();
-      return a;
-    }
-
     // Discharge settings
     const [dischargeRows] = await db.query('SELECT area_name, discharge_days FROM discharge_settings');
     const dischargeMap = {};
@@ -65,14 +43,8 @@ router.get('/', isAuthenticated, async (req, res) => {
     const vessels = entries.map(e => {
       const eta = e.next_dest_eta || e.ais_eta;
 
-      // Resolve area from AIS destination
-      const install = (e.next_dest_name || '').trim();
-      const zone = (e.next_dest_zone || '').trim();
-      const aisLoc = install || zone || '';
-      const area = areaMap[install.toLowerCase()] || areaMap[zone.toLowerCase()] || '';
-
-      // Use manual position from fleet page, or auto-resolve from area
-      const pos = (e.fleet_position || resolvePosition(area, e.state)).trim();
+      // Use manual position from fleet page, or auto-resolved from fleet page
+      const pos = (e.fleet_position || e.auto_position || '').trim();
 
       // Auto-calculate open_from based on ETA + discharge days
       if (eta && pos && !e.open_from) {

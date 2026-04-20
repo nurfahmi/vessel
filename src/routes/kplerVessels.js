@@ -214,6 +214,12 @@ router.get('/', isAuthenticated, async (req, res) => {
       v._position = v.position || v._autoPosition || '';
     });
 
+    // Save auto_position back to kpler_fleet (so availability page can use it)
+    const posUpdates = vessels.filter(v => v._autoPosition).map(v =>
+      db.query('UPDATE kpler_fleet SET auto_position = ? WHERE id = ?', [v._autoPosition, v.id]).catch(() => {})
+    );
+    await Promise.all(posUpdates);
+
     const [stats] = await db.query(`
       SELECT 
         COUNT(*) as total,
