@@ -158,7 +158,7 @@
             </div>
           </td>
           <td>
-            <select class="pos-select <%= v.position ? 'manual' : 'auto' %>" onchange="savePosition(<%= v.kpler_id %>, this)">
+            <select class="pos-select <%= v._isManualPos ? 'manual' : 'auto' %>" onchange="savePosition(<%= v.kpler_id %>, this)">
               <option value="">—</option>
               <% positionOptions.forEach(p => { %>
                 <option value="<%= p %>" <%= v.position === p ? 'selected' : '' %>><%= p %></option>

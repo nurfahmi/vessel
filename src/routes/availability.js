@@ -34,19 +34,47 @@ router.get('/', isAuthenticated, async (req, res) => {
     const lookup = await buildLookupMap();
     const destinations = lookup.destinations;
 
+    // Port areas for auto-resolving position
+    const [portAreas] = await db.query('SELECT location_name, area FROM port_areas');
+    const areaMap = {};
+    portAreas.forEach(r => { areaMap[r.location_name.toLowerCase().trim()] = r.area; });
+
+    // Same auto-resolve as kpler-vessels page
+    function resolvePosition(area, state) {
+      if (!area || area === 'No AIS') return '';
+      const a = area.trim();
+      const map = {
+        'USG': 'loads USG', 'AG': 'loads AG', 'WAF': 'loads WAF',
+        'Panama': 'loads USG', 'Cape (as proxy)': 'loads USG',
+        'Gibraltar': 'Gibraltar', 'Caribs': 'Caribs', 'Cayman': 'Cayman',
+        'Mexico': 'Mexico', 'Ocoa': 'Ocoa', 'East Med': 'East Med',
+        'Richards Bay': 'Richards Bay',
+      };
+      if (map[a]) return map[a];
+      const plusMatch = a.match(/^(.+?)\s*[\+\-]\s*\d/);
+      if (plusMatch) return plusMatch[1].trim();
+      return a;
+    }
+
     // Discharge settings
     const [dischargeRows] = await db.query('SELECT area_name, discharge_days FROM discharge_settings');
     const dischargeMap = {};
     dischargeRows.forEach(r => { dischargeMap[r.area_name.toLowerCase().trim()] = r.discharge_days; });
 
     // Calculate open_from/to and ETAs for each vessel
-    // Position already resolved in kpler_fleet from the Fleet page dropdown
     const vessels = entries.map(e => {
       const eta = e.next_dest_eta || e.ais_eta;
-      // Use position from kpler_fleet (set via dropdown in Fleet page)
-      const pos = (e.fleet_position || '').trim();
 
-      // Auto-calculate open_from based on ETA + discharge days if not set
+      // Resolve area from AIS destination
+      const install = (e.next_dest_name || '').trim();
+      const zone = (e.next_dest_zone || '').trim();
+      const aisLoc = install || zone || '';
+      const area = areaMap[install.toLowerCase()] || areaMap[zone.toLowerCase()] || '';
+
+      // Use manual position from fleet page, or auto-resolve from area
+      const pos = (e.fleet_position || resolvePosition(area, e.state)).trim();
+
+      // Auto-calculate open_from based on ETA + discharge days
       if (eta && pos && !e.open_from) {
         const dDays = dischargeMap[pos.toLowerCase()] || 0;
         if (e.state === 'loaded') {
@@ -97,7 +125,7 @@ router.get('/', isAuthenticated, async (req, res) => {
       e.vessel_availability = availStatus;
       e._notes = availNotes;
 
-      return { ...e, etas, position: pos };
+      return { ...e, etas, position: pos, _isManualPos: !!e.fleet_position };
     });
 
     // Filter options
