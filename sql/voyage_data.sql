@@ -376,7 +376,7 @@ INSERT INTO port_areas (location_name, area, region) VALUES
   ('Asaluyeh South Pars Terminal', 'AG', NULL),
   ('ASRY M', 'AG', NULL),
   ('Sitra Refinery', 'AG', NULL),
-  ('ASRY,BAHARIN #;\', 'AG', NULL),
+  ('ASRY,BAHARIN #;', 'AG', NULL),
   ('IN HAL>>RUWAIP', 'AG', NULL),
   ('ASRY BEERA PORT', 'AG', NULL),
   ('RAS TANNURAH.KSA', 'AG', NULL),
