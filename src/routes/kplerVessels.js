@@ -324,6 +324,13 @@ router.post('/api/save-position/:id', isAuthenticated, async (req, res) => {
   res.json({ ok: true, position });
 });
 
+// Save position by kpler_id (used by availability page)
+router.post('/api/save-position-by-kpler/:kplerId', isAuthenticated, async (req, res) => {
+  const { position } = req.body;
+  await db.query('UPDATE kpler_fleet SET position = ? WHERE kpler_id = ?', [position || null, req.params.kplerId]);
+  res.json({ ok: true, position });
+});
+
 // POST bulk toggle tracked
 router.post('/api/bulk-track', isAuthenticated, async (req, res) => {
   const { ids, tracked } = req.body;

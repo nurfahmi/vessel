@@ -103,11 +103,18 @@ router.get('/', isAuthenticated, async (req, res) => {
     // Filter options
     const controllers = [...new Set(entries.map(e => e.controller).filter(Boolean))].sort();
 
-    // Unique positions: from transit_times + port_areas areas
-    const [posRows] = await db.query('SELECT DISTINCT from_position as pos FROM transit_times UNION SELECT DISTINCT area as pos FROM port_areas ORDER BY pos');
-    const positions = posRows.map(r => r.pos);
+    // Same position options as kpler-vessels
+    const positionOptions = [
+      'AG','Balboa','Cape ballast','Cape laden','Caribs','Cayman','ECI','East China',
+      'East Med','Eu','Far East','Galle','Gibraltar','Honolulu','Indo','Japan','Korea',
+      'Malaysia laden','Mexico','Mohammedia','Monteverde','North China','Ocoa',
+      'Philippines','Port Louis ballast','Port Louis laden','Richards Bay',
+      'Singapore ballast','Singapore laden','South China','Suape','Suez','Taiwan',
+      'Tanzania','Thailand','Turkey','USG','Vietnam','WAF','WCI',
+      'loads AG','loads MH','loads USG','loads WAF'
+    ];
 
-    res.render('availability/index', { vessels, destinations, controllers, positions, dischargeMap, filter: req.query.controller || '' });
+    res.render('availability/index', { vessels, destinations, controllers, positionOptions, dischargeMap, filter: req.query.controller || '' });
   } catch (err) {
     console.error('Availability error:', err);
     req.flash('error', 'Failed to load availability');
