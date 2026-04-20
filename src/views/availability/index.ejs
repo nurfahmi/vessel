@@ -120,7 +120,7 @@
         >
           <td class="sticky left-0 bg-slate-900 text-slate-500 text-[10px]"><%= i + 1 %></td>
           <td class="sticky left-8 bg-slate-900">
-            <a href="/vessel-intel/<%= v.kpler_vessel_id %>" class="text-white font-medium hover:text-cyan-300 transition-colors text-[11px]"><%= v.name %></a>
+            <a href="/kpler-vessels/<%= v.kpler_id %>" class="text-white font-medium hover:text-cyan-300 transition-colors text-[11px]"><%= v.name %></a>
             <div class="flex gap-0.5 mt-0.5">
               <% if (v.us_trade) { %><span class="badge-tag bg-us" title="US Trade OK">US</span><% } %>
               <% if (v.chinese_built) { %><span class="badge-tag bg-cn" title="Chinese Built">CN</span><% } %>
@@ -153,9 +153,8 @@
           <td class="whitespace-nowrap">
             <select class="bg-transparent text-white text-[10px] font-medium border-0 outline-none cursor-pointer p-0 w-full"
                     style="appearance:none; -webkit-appearance:none;"
-                    onchange="savePosition(<%= v.tracker_id %>, this.value)"
-                    title="<%= v._resolvedArea || '' %>">
-              <option value="" class="bg-slate-800" <%= !(v._open_position || v.position) ? 'selected' : '' %>>—</option>
+                    title="<%= v._resolvedArea || '' %>" disabled>
+              <option value="" class="bg-slate-800" <%= !v.position ? 'selected' : '' %>>—</option>
               <% positions.forEach(p => { %>
                 <option value="<%= p %>" class="bg-slate-800" 
                   <%= (v._open_position || v.position || '') === p ? 'selected' : '' %>><%= p %></option>
@@ -249,10 +248,7 @@
             </td>
           <% }) %>
           <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[180px]">
-            <input type="text" value="<%= (v.notes || v.current_voyage || '').replace(/"/g, '&quot;') %>" 
-              class="w-full bg-transparent border-0 text-slate-400 text-[10px] px-0 focus:text-white focus:ring-0"
-              onblur="saveNotes(<%= v.id %>, this.value)" onkeydown="if(event.key==='Enter'){this.blur()}"
-              placeholder="—">
+            <span class="text-slate-500 text-[10px]"><%= v.vessel_availability || '—' %></span>
           </td>
         </tr>
         <% }) %>
@@ -332,32 +328,15 @@ function renumber() {
   });
 }
 
-async function savePosition(trackerId, position) {
-  try {
-    await fetch('/availability/position/' + trackerId, {
-      method: 'PUT', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ position })
-    });
-    location.reload();
-  } catch(e) { console.error(e); }
-}
-
 async function saveDischarge(input) {
   const area = input.dataset.area;
   if (!area) return;
   try {
-    await fetch('/availability/discharge/' + encodeURIComponent(area), {
-      method: 'PUT', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ days: input.value })
+    await fetch('/availability/api/save-discharge', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ area, days: input.value })
     });
     location.reload();
   } catch(e) { console.error(e); }
-}
-
-function saveNotes(trackerId, notes) {
-  fetch('/availability/api/save-notes', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ trackerId, notes })
-  });
 }
 </script>
