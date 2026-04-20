@@ -104,9 +104,9 @@
       </div>
 
       <% if (tokenStatus !== 'active') { %>
-        <a href="/settings" class="block text-center text-xs text-blue-400 hover:text-blue-300 mt-2">
-          <%= tokenStatus === 'inactive' ? 'Configure token in Settings →' : 'Refresh token in Settings →' %>
-        </a>
+        <button onclick="refreshToken(this)" class="w-full mt-2 text-xs py-1 px-3 rounded" style="background:#7c3aed;color:white;cursor:pointer;">
+          🔄 Refresh Now
+        </button>
       <% } %>
     </div>
   </div>
@@ -148,3 +148,22 @@
     </div>
   </div>
 </div>
+
+<script>
+function refreshToken(btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ Refreshing...';
+  fetch('/dashboard/api/refresh-token', { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        btn.textContent = '✅ Refreshed!';
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        btn.textContent = '❌ ' + (d.error || 'Failed');
+        btn.disabled = false;
+      }
+    })
+    .catch(() => { btn.textContent = '❌ Error'; btn.disabled = false; });
+}
+</script>

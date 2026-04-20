@@ -399,6 +399,7 @@ async function initAllTables() {
       'ALTER TABLE kpler_vessel_details MODIFY COLUMN vessel_availability TEXT',
       'ALTER TABLE kpler_vessel_details MODIFY COLUMN last_port_availability TEXT',
       'ALTER TABLE settings ADD COLUMN description VARCHAR(255)',
+      'ALTER TABLE settings MODIFY COLUMN setting_value TEXT',
     ];
     for (const p of patches) {
       try { await db.query(p); } catch (e) { /* column already exists */ }

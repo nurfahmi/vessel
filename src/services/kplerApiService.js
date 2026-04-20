@@ -122,6 +122,11 @@ async function getAccessToken() {
         if (data.refresh_token) {
           await Setting.set('kpler_refresh_token', data.refresh_token);
         }
+        // Keep access token + timestamp in sync with cron
+        if (data.access_token) {
+          await Setting.set('kpler_access_token', data.access_token);
+        }
+        await Setting.set('kpler_token_last_refresh', new Date().toISOString());
         return cachedToken;
       }
     } catch (e) { /* fall through to direct token */ }
