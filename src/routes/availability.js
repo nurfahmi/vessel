@@ -19,6 +19,7 @@ router.get('/', isAuthenticated, async (req, res) => {
              f.position_time,
              f.loaded, f.lat, f.lon, f.speed, f.draught,
              d.last_port_departure as position_zones,
+             f.position as fleet_position,
              v.us_trade, v.chinese_built, v.panamax, v.scrubber_df, v.deck_tank,
              v.kpler_vessel_id
       FROM kpler_fleet f
@@ -33,103 +34,34 @@ router.get('/', isAuthenticated, async (req, res) => {
     const lookup = await buildLookupMap();
     const destinations = lookup.destinations;
 
-    // Port areas + aliases for resolving AIS destinations
-    const [portAreas] = await db.query('SELECT location_name, area FROM port_areas');
-    let portAliases = [];
-    try { [portAliases] = await db.query('SELECT alias_name, canonical_name FROM port_aliases'); } catch(e) {}
-    const areaMap = {};
-    portAreas.forEach(r => { areaMap[r.location_name.toLowerCase().trim()] = r.area; });
-    portAliases.forEach(r => { areaMap[r.alias_name.toLowerCase().trim()] = r.canonical_name; });
-
     // Discharge settings
     const [dischargeRows] = await db.query('SELECT area_name, discharge_days FROM discharge_settings');
     const dischargeMap = {};
     dischargeRows.forEach(r => { dischargeMap[r.area_name.toLowerCase().trim()] = r.discharge_days; });
 
-    const resolveArea = (dest) => {
-      if (!dest) return null;
-      const key = dest.toLowerCase().trim();
-      return areaMap[key] || null;
-    };
-
-    const parseArea = (area) => {
-      if (!area) return { position: null, extraDays: 0 };
-      const m1 = area.match(/^(.+?)\+(\d+)/);
-      if (m1) return { position: m1[1].trim(), extraDays: parseInt(m1[2]) };
-      const m2 = area.match(/^\+(\d+).*?(?:open|to)\s+(.+)/i);
-      if (m2) return { position: m2[2].trim(), extraDays: parseInt(m2[1]) };
-      return { position: area, extraDays: 0 };
-    };
-
-    const dischargeDays = (area) => {
-      if (!area) return 0;
-      return dischargeMap[area.toLowerCase().trim()] || 0;
-    };
-
-    // Transit zones: waypoints, not final destinations
-    const transitZones = new Set(['panama', 'suez', 'gibraltar', 'cape', 'singapore']);
-
     // Calculate open_from/to and ETAs for each vessel
+    // Position already resolved in kpler_fleet from the Fleet page dropdown
     const vessels = entries.map(e => {
-      const zoneDest = (e.next_dest_zone || '').trim();
-      const aisDest = (e.ais_destination || '').trim();
-      const nextDestName = (e.next_dest_name || '').trim();
-
-      // Smart resolution: zone → check if transit → use AIS for real target
-      let area = null;
-      let usedDest = '';
-
-      if (zoneDest) {
-        const zoneArea = resolveArea(zoneDest);
-        const isTransit = transitZones.has((zoneArea || zoneDest).toLowerCase());
-
-        if (isTransit && aisDest && e.state === 'ballast') {
-          area = resolveArea(aisDest);
-          usedDest = aisDest;
-          e._destSource = 'smart';
-        } else {
-          area = zoneArea;
-          usedDest = zoneDest;
-          e._destSource = 'zone';
-        }
-      }
-
-      if (!area && aisDest) { area = resolveArea(aisDest); usedDest = aisDest; e._destSource = 'ais'; }
-      if (!area && nextDestName) { area = resolveArea(nextDestName); usedDest = nextDestName; e._destSource = 'kpler'; }
-      if (!e._destSource) e._destSource = null;
-
-      e._usedDest = usedDest;
       const eta = e.next_dest_eta || e.ais_eta;
+      // Use position from kpler_fleet (set via dropdown in Fleet page)
+      const pos = (e.fleet_position || '').trim();
 
-      if (eta && area) {
-        const { position, extraDays } = parseArea(area);
-        const dDays = dischargeDays(position || area);
-        e._resolvedArea = area;
-        e._transitDays = extraDays;
-        e._dischargeDays = dDays;
-
+      // Auto-calculate open_from based on ETA + discharge days if not set
+      if (eta && pos && !e.open_from) {
+        const dDays = dischargeMap[pos.toLowerCase()] || 0;
         if (e.state === 'loaded') {
           e.open_from = new Date(new Date(eta).getTime() + dDays * 86400000);
           e.open_to = new Date(e.open_from.getTime() + 86400000);
-          if (position) e._open_position = position;
-        } else if (e.state === 'ballast' && extraDays > 0) {
-          e.open_from = new Date(new Date(eta).getTime() + (extraDays + dDays) * 86400000);
+        } else {
+          e.open_from = new Date(new Date(eta).getTime());
           e.open_to = new Date(e.open_from.getTime() + 86400000);
-          if (position) e._open_position = position;
-        } else if (e.state === 'ballast' && position) {
-          e.open_from = new Date(new Date(eta).getTime() + dDays * 86400000);
-          e.open_to = new Date(e.open_from.getTime() + 86400000);
-          e._open_position = position;
         }
       }
 
-      // Use auto-resolved position from port_areas
-      const resolvedPos = e._open_position || '';
-
+      // Calculate ETAs using tracker's formula
       const etas = {};
       destinations.forEach(d => {
-        // Use the same resolveTransitDays as tracker (handles aliases, +N, area chain)
-        const days = resolveTransitDays(resolvedPos, d.key, lookup);
+        const days = resolveTransitDays(pos, d.key, lookup);
         if (days !== null && e.open_from) {
           const from = new Date(e.open_from);
           const to = e.open_to ? new Date(e.open_to) : from;
@@ -165,7 +97,7 @@ router.get('/', isAuthenticated, async (req, res) => {
       e.vessel_availability = availStatus;
       e._notes = availNotes;
 
-      return { ...e, etas, position: e._open_position || '' };
+      return { ...e, etas, position: pos };
     });
 
     // Filter options
