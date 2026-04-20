@@ -150,16 +150,16 @@ router.get('/', isAuthenticated, async (req, res) => {
     const q = req.query.q || '';
     const state = req.query.state || '';
     const status = req.query.status || '';
-    const tracked = req.query.tracked || '';
+    const ais = req.query.ais || '';
 
     let where = ['1=1'];
     let params = [];
 
-    if (q) { where.push('(name LIKE ? OR imo LIKE ? OR mmsi LIKE ?)'); params.push(`%${q}%`, `%${q}%`, `%${q}%`); }
-    if (state) { where.push('state = ?'); params.push(state); }
-    if (status) { where.push('status = ?'); params.push(status); }
-    if (tracked === '1') { where.push('tracked = 1'); }
-    if (tracked === '0') { where.push('tracked = 0'); }
+    if (q) { where.push('(f.name LIKE ? OR f.imo LIKE ? OR f.mmsi LIKE ?)'); params.push(`%${q}%`, `%${q}%`, `%${q}%`); }
+    if (state) { where.push('f.state = ?'); params.push(state); }
+    if (status) { where.push('f.status = ?'); params.push(status); }
+    if (ais === 'noais') { where.push('(f.lat IS NULL AND f.speed IS NULL)'); }
+    if (ais === 'hasais') { where.push('(f.lat IS NOT NULL OR f.speed IS NOT NULL)'); }
 
     const [vessels] = await db.query(
       `SELECT f.*, d.last_port_zone AS enriched_port_zone, d.last_port_install AS enriched_port_install,
@@ -217,7 +217,7 @@ router.get('/', isAuthenticated, async (req, res) => {
     const [stats] = await db.query(`
       SELECT 
         COUNT(*) as total,
-        SUM(tracked=1) as tracked,
+        SUM(status='Active' AND lat IS NULL AND speed IS NULL) as no_ais,
         SUM(state='ballast') as ballast,
         SUM(state='loaded') as loaded,
         SUM(status='Active') as active,
@@ -231,7 +231,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 
     res.render('kpler-vessels/index', {
       vessels, stats: stats[0], states, statuses,
-      filter: { q, state, status, tracked },
+      filter: { q, state, status, ais },
       positionOptions: POSITION_OPTIONS
     });
   } catch (err) {
