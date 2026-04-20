@@ -73,12 +73,16 @@ const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 
 const PORT = process.env.PORT || 3099;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚢 VLGC Sorter running on http://localhost:${PORT}`);
+
+  // Init all database tables
+  const { initAllTables } = require('./src/services/dbInit');
+  await initAllTables();
 
   // Init voyage tables & seed data
   const { initVoyageTables } = require('./src/services/voyageDbInit');
-  initVoyageTables();
+  await initVoyageTables();
 
   // Start Kpler token refresh cron
   const { startTokenCron, startSyncCron } = require('./src/services/kplerCron');
