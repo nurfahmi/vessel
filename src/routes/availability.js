@@ -4,24 +4,28 @@ const db = require('../config/database');
 
 router.get('/', isAuthenticated, async (req, res) => {
   try {
-    // Pull ALL active vessels directly from kpler_vessels — no tracking needed
+    // Pull ALL active vessels from kpler_fleet (primary synced data)
     const [entries] = await db.query(`
-      SELECT kv.kpler_id, kv.name, kv.cbm, kv.built_year, kv.state, kv.flag,
-             kv.is_ethylene_capable, kv.is_floating_storage,
-             kv.controller, kv.vessel_availability,
-             kv.next_dest_name, kv.next_dest_zone, kv.next_dest_eta, kv.ais_destination, kv.ais_eta,
-             kv.cargo_products, kv.current_volume, kv.beam,
-             kv.charter_charterer, kv.last_port, kv.last_port_country,
-             kv.position_time,
-             kv.loaded, kv.lat, kv.lon, kv.speed, kv.draught,
-             kv.open_from, kv.open_to,
-             kv.position_zones,
+      SELECT f.kpler_id, f.name, f.capacity_cbm as cbm, f.build_year as built_year, 
+             f.state, f.flag_name as flag,
+             f.is_ethylene_capable, f.is_floating_storage,
+             f.controller, 
+             d.vessel_availability,
+             f.next_dest_installation as next_dest_name, f.next_dest_zone, f.next_dest_eta, 
+             f.ais_destination, f.ais_eta,
+             f.cargo_products, f.cargo_volume as current_volume,
+             d.last_port_zone as charter_charterer,
+             f.last_port, f.last_port_country,
+             f.position_time,
+             f.loaded, f.lat, f.lon, f.speed, f.draught,
+             d.last_port_departure as position_zones,
              v.us_trade, v.chinese_built, v.panamax, v.scrubber_df, v.deck_tank,
              v.kpler_vessel_id
-      FROM kpler_vessels kv
-      LEFT JOIN vessels v ON v.kpler_vessel_id = kv.kpler_id
-      WHERE kv.status = 'Active'
-      ORDER BY kv.name
+      FROM kpler_fleet f
+      LEFT JOIN kpler_vessel_details d ON f.kpler_id = d.kpler_id
+      LEFT JOIN vessels v ON v.kpler_vessel_id = f.kpler_id
+      WHERE f.status = 'Active'
+      ORDER BY f.name
     `);
 
     // Get destinations for ETA columns
@@ -178,15 +182,16 @@ router.get('/export', isAuthenticated, async (req, res) => {
     const XLSX = require('xlsx');
 
     const [entries] = await db.query(`
-      SELECT kv.kpler_id, kv.name, kv.cbm, kv.built_year, kv.state, kv.flag,
-             kv.is_ethylene_capable, kv.controller, kv.ais_destination, kv.ais_eta,
-             kv.vessel_availability, kv.next_dest_name, kv.beam,
-             kv.open_from, kv.open_to,
+      SELECT f.kpler_id, f.name, f.capacity_cbm as cbm, f.build_year as built_year, 
+             f.state, f.flag_name as flag,
+             f.is_ethylene_capable, f.controller, f.ais_destination, f.ais_eta,
+             d.vessel_availability, f.next_dest_installation as next_dest_name,
              v.us_trade, v.chinese_built, v.panamax, v.scrubber_df, v.deck_tank
-      FROM kpler_vessels kv
-      LEFT JOIN vessels v ON v.kpler_vessel_id = kv.kpler_id
-      WHERE kv.status = 'Active'
-      ORDER BY kv.name
+      FROM kpler_fleet f
+      LEFT JOIN kpler_vessel_details d ON f.kpler_id = d.kpler_id
+      LEFT JOIN vessels v ON v.kpler_vessel_id = f.kpler_id
+      WHERE f.status = 'Active'
+      ORDER BY f.name
     `);
 
     const [destinations] = await db.query('SELECT * FROM destinations ORDER BY sort_order');
