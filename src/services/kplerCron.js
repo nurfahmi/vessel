@@ -70,7 +70,7 @@ async function refreshTokenJob() {
  */
 function startTokenCron() {
   // Refresh immediately on startup
-  setTimeout(() => refreshTokenJob(), 5000);
+  refreshTokenJob();
   
   // Then every 4 minutes
   const FOUR_MINUTES = 4 * 60 * 1000;
