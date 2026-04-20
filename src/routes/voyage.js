@@ -24,4 +24,9 @@ router.post('/aliases', vc.createAlias);
 router.put('/aliases/:id', vc.updateAlias);
 router.delete('/aliases/:id', vc.deleteAlias);
 
+// Discharge settings
+router.post('/discharge', vc.createDischarge);
+router.put('/discharge/:id', vc.updateDischarge);
+router.delete('/discharge/:id', vc.deleteDischarge);
+
 module.exports = router;

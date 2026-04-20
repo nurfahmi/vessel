@@ -1,4 +1,4 @@
-const { Destination, TransitTime, PortArea, PortAlias } = require('../models/VoyageData');
+const { Destination, TransitTime, PortArea, PortAlias, DischargeSetting } = require('../models/VoyageData');
 
 module.exports = {
   // ─── MAIN VIEW ─────────────────────────────────
@@ -41,10 +41,11 @@ module.exports = {
     }
 
     const areaCount = await PortArea.count();
+    const dischargeSettings = await DischargeSetting.getAll();
 
     res.render('voyage/index', {
       tab, destinations, transitTimes, portAreas, aliases, areas,
-      selectedDest, areaCount, 
+      selectedDest, areaCount, dischargeSettings,
       selectedArea: area, q,
       layout: 'layout/main'
     });
@@ -123,6 +124,25 @@ module.exports = {
 
   async deleteAlias(req, res) {
     await PortAlias.delete(req.params.id);
+    res.json({ ok: true });
+  },
+
+  // ─── DISCHARGE SETTINGS CRUD ───────────────────
+  async createDischarge(req, res) {
+    const { area_name, discharge_days } = req.body;
+    await DischargeSetting.create({ area_name, discharge_days: parseInt(discharge_days) || 4 });
+    req.flash('success', 'Discharge setting added');
+    res.redirect('/voyage?tab=discharge');
+  },
+
+  async updateDischarge(req, res) {
+    const { discharge_days } = req.body;
+    await DischargeSetting.update(req.params.id, parseInt(discharge_days) || 4);
+    res.json({ ok: true });
+  },
+
+  async deleteDischarge(req, res) {
+    await DischargeSetting.delete(req.params.id);
     res.json({ ok: true });
   },
 
