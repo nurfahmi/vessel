@@ -20,7 +20,7 @@ async function initVoyageTables() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         from_position VARCHAR(255),
         destination_id INT,
-        transit_days INT,
+        transit_days DECIMAL(8,3),
         notes TEXT,
         UNIQUE KEY uq_route (from_position, destination_id)
       )

@@ -1180,7 +1180,7 @@ CREATE TABLE IF NOT EXISTS transit_times (
   id INT AUTO_INCREMENT PRIMARY KEY,
   from_position VARCHAR(255) NOT NULL,
   destination_id INT NOT NULL,
-  transit_days INT NOT NULL,
+  transit_days DECIMAL(8,3) NOT NULL,
   notes TEXT,
   UNIQUE KEY (from_position, destination_id)
 );
