@@ -145,6 +145,33 @@ router.get('/', isAuthenticated, async (req, res) => {
           etas[d.key] = { eta1, eta2, days };
         }
       });
+      // Parse vessel_availability from JSON
+      let availStatus = '';
+      let availNotes = '';
+      try {
+        let avail = e.vessel_availability;
+        if (typeof avail === 'string' && avail.startsWith('[')) {
+          const arr = JSON.parse(avail);
+          if (arr.length > 0) {
+            const first = arr.find(a => a.active) || arr[0];
+            availNotes = first.comment || '';
+            if (first.open) {
+              const openDate = new Date(first.open);
+              if (openDate <= new Date()) {
+                availStatus = 'Potentially Open';
+              } else {
+                availStatus = 'Open ' + openDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+              }
+            }
+          }
+        } else if (avail && typeof avail === 'string') {
+          availStatus = avail;
+        }
+      } catch(ex) { availStatus = ''; }
+
+      e.vessel_availability = availStatus;
+      e._notes = availNotes;
+
       return { ...e, etas, position: e._open_position || '' };
     });
 

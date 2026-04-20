@@ -247,8 +247,8 @@
               <% } %>
             </td>
           <% }) %>
-          <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[180px]">
-            <span class="text-slate-500 text-[10px]"><%= v.vessel_availability || '—' %></span>
+          <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[220px] truncate" title="<%= v._notes || '' %>">
+            <%= v._notes || '—' %>
           </td>
         </tr>
         <% }) %>
