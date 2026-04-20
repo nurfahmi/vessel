@@ -4,12 +4,13 @@ const path = require('path');
 
 async function initVoyageTables() {
   try {
-    // Create tables if not exist
+    // Create tables if not exist — schema matches VoyageData.js models
     await db.query(`
       CREATE TABLE IF NOT EXISTS destinations (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255),
         \`key\` VARCHAR(255) UNIQUE,
+        label VARCHAR(255),
+        short_label VARCHAR(100),
         sort_order INT DEFAULT 0
       )
     `);
@@ -18,9 +19,10 @@ async function initVoyageTables() {
       CREATE TABLE IF NOT EXISTS transit_times (
         id INT AUTO_INCREMENT PRIMARY KEY,
         from_position VARCHAR(255),
-        to_destination VARCHAR(255),
-        days INT,
-        UNIQUE KEY uq_route (from_position, to_destination)
+        destination_id INT,
+        transit_days INT,
+        notes TEXT,
+        UNIQUE KEY uq_route (from_position, destination_id)
       )
     `);
 
@@ -38,7 +40,8 @@ async function initVoyageTables() {
       CREATE TABLE IF NOT EXISTS port_aliases (
         id INT AUTO_INCREMENT PRIMARY KEY,
         alias_name VARCHAR(255) UNIQUE,
-        canonical_name VARCHAR(255)
+        canonical_name VARCHAR(255),
+        notes TEXT
       )
     `);
 
@@ -49,6 +52,19 @@ async function initVoyageTables() {
         discharge_days INT DEFAULT 4
       )
     `);
+
+    // Patch columns for existing tables that may have old schema
+    const patches = [
+      "ALTER TABLE destinations ADD COLUMN label VARCHAR(255)",
+      "ALTER TABLE destinations ADD COLUMN short_label VARCHAR(100)",
+      "ALTER TABLE transit_times ADD COLUMN destination_id INT",
+      "ALTER TABLE transit_times ADD COLUMN transit_days INT",
+      "ALTER TABLE transit_times ADD COLUMN notes TEXT",
+      "ALTER TABLE port_aliases ADD COLUMN notes TEXT",
+    ];
+    for (const p of patches) {
+      try { await db.query(p); } catch(e) {}
+    }
 
     // Check if tables need seeding
     const [transitCount] = await db.query('SELECT COUNT(*) as c FROM transit_times');
