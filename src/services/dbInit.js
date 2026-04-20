@@ -39,8 +39,11 @@ async function initAllTables() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       setting_key VARCHAR(100) UNIQUE NOT NULL,
       setting_value TEXT,
+      description VARCHAR(255),
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )`);
+    // Patch: add description if missing (for tables created before this fix)
+    try { await db.query('ALTER TABLE settings ADD COLUMN description VARCHAR(255)'); } catch(e) {}
 
     // Vessels (Control List)
     await db.query(`CREATE TABLE IF NOT EXISTS vessels (
