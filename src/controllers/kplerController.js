@@ -7,7 +7,7 @@ const kplerController = {
   async index(req, res) {
     try {
       const [data] = await db.query(
-        "SELECT * FROM kpler_vessels ORDER BY CASE WHEN status = 'Under Construction' THEN 1 ELSE 0 END, name"
+        "SELECT * FROM kpler_vessels ORDER BY CASE WHEN status = 'Under Construction' THEN 2 WHEN controller IS NULL OR controller = '' OR controller = 'Unknown' THEN 1 ELSE 0 END, name"
       );
       const [trackerCount] = await db.query('SELECT COUNT(*) as count FROM tracker_entries');
       const [vesselCount] = await db.query('SELECT COUNT(*) as count FROM vessels');

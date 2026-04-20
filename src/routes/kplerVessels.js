@@ -168,7 +168,12 @@ router.get('/', isAuthenticated, async (req, res) => {
               d.fetched_at AS enriched_at
        FROM kpler_fleet f
        LEFT JOIN kpler_vessel_details d ON f.kpler_id = d.kpler_id
-       WHERE ${where.join(' AND ')} ORDER BY f.name`,
+       WHERE ${where.join(' AND ')} 
+       ORDER BY CASE 
+         WHEN f.status = 'Under Construction' THEN 2 
+         WHEN f.controller IS NULL OR f.controller = '' OR f.controller = 'Unknown' THEN 1 
+         ELSE 0 
+       END, f.name`,
       params
     );
 
