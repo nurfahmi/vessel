@@ -107,7 +107,11 @@
     <table class="data-table text-[11px]" id="fleetTable">
       <thead>
         <tr>
-          <th class="sticky left-0 z-20 bg-slate-900 w-10">Track</th>
+          <th class="sticky left-0 z-20 bg-slate-900 w-10">
+            <input type="checkbox" class="track-toggle" id="checkAll" 
+              onchange="toggleAllTrack(this)" title="Track all visible vessels"
+              <% if (vessels.length > 0 && vessels.every(v => v.tracked)) { %>checked<% } %>>
+          </th>
           <th class="sticky left-10 z-20 bg-slate-900 min-w-[200px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
           <th class="sort-btn" data-col="pos" onclick="sortTable('pos')">Position</th>
           <th class="sort-btn" data-col="ctrl" onclick="sortTable('ctrl')">Controller</th>
@@ -207,7 +211,42 @@ function toggleTrack(id, checkbox) {
     .then(d => {
       checkbox.checked = d.tracked;
       checkbox.closest('tr').classList.toggle('bg-emerald-950/20', d.tracked);
+      updateCheckAll();
     });
+}
+
+function updateCheckAll() {
+  const all = document.querySelectorAll('.track-toggle:not(#checkAll)');
+  const checked = document.querySelectorAll('.track-toggle:not(#checkAll):checked');
+  document.getElementById('checkAll').checked = all.length > 0 && all.length === checked.length;
+}
+
+async function toggleAllTrack(masterCheckbox) {
+  const checked = masterCheckbox.checked;
+  const rows = document.querySelectorAll('#fleetTable tbody tr:not(.uc-row)');
+  const ids = [];
+  rows.forEach(r => {
+    const cb = r.querySelector('.track-toggle');
+    if (cb) {
+      const id = cb.getAttribute('onchange').match(/\d+/)?.[0];
+      if (id) ids.push(parseInt(id));
+    }
+  });
+  if (!ids.length) return;
+  try {
+    await fetch('/kpler-vessels/api/bulk-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, tracked: checked })
+    });
+    rows.forEach(r => {
+      const cb = r.querySelector('.track-toggle');
+      if (cb) {
+        cb.checked = checked;
+        r.classList.toggle('bg-emerald-950/20', checked);
+      }
+    });
+  } catch(e) { alert('Bulk track failed: ' + e.message); }
 }
 
 function savePosition(id, select) {

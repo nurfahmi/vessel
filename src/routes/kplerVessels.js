@@ -324,6 +324,14 @@ router.post('/api/save-position/:id', isAuthenticated, async (req, res) => {
   res.json({ ok: true, position });
 });
 
+// POST bulk toggle tracked
+router.post('/api/bulk-track', isAuthenticated, async (req, res) => {
+  const { ids, tracked } = req.body;
+  if (!ids || !ids.length) return res.json({ ok: false });
+  await db.query('UPDATE kpler_fleet SET tracked = ? WHERE id IN (?)', [tracked ? 1 : 0, ids]);
+  res.json({ ok: true, count: ids.length, tracked: !!tracked });
+});
+
 // GET vessel detail page (same as vessel-intel)
 router.get('/:kplerId', isAuthenticated, async (req, res) => {
   const kplerId = parseInt(req.params.kplerId);
