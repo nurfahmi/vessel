@@ -28,18 +28,10 @@ router.get('/', isAuthenticated, async (req, res) => {
       ORDER BY f.name
     `);
 
-    // Get destinations for ETA columns
-    const [destinations] = await db.query('SELECT * FROM destinations ORDER BY sort_order');
-
-    // Build transit lookup
-    const [transitRows] = await db.query(
-      `SELECT t.from_position, d.\`key\` as dest_key, d.short_label, t.transit_days 
-       FROM transit_times t JOIN destinations d ON t.destination_id = d.id`
-    );
-    const transitMap = {};
-    transitRows.forEach(r => {
-      transitMap[`${r.from_position.toLowerCase().trim()}|${r.dest_key}`] = parseFloat(r.transit_days);
-    });
+    // Use the same ETA formula as the tracker
+    const { buildLookupMap, resolveTransitDays } = require('../services/etaCalculatorService');
+    const lookup = await buildLookupMap();
+    const destinations = lookup.destinations;
 
     // Port areas + aliases for resolving AIS destinations
     const [portAreas] = await db.query('SELECT location_name, area FROM port_areas');
@@ -132,16 +124,17 @@ router.get('/', isAuthenticated, async (req, res) => {
       }
 
       // Use auto-resolved position from port_areas
-      const resolvedPos = (e._open_position || '').toLowerCase().trim();
+      const resolvedPos = e._open_position || '';
 
       const etas = {};
       destinations.forEach(d => {
-        let days = transitMap[`${resolvedPos}|${d.key}`];
-        if (days !== undefined && e.open_from) {
+        // Use the same resolveTransitDays as tracker (handles aliases, +N, area chain)
+        const days = resolveTransitDays(resolvedPos, d.key, lookup);
+        if (days !== null && e.open_from) {
           const from = new Date(e.open_from);
           const to = e.open_to ? new Date(e.open_to) : from;
-          const eta1 = new Date(from.getTime() + days * 86400000);
-          const eta2 = new Date(to.getTime() + days * 86400000);
+          const eta1 = new Date(from); eta1.setDate(eta1.getDate() + Math.ceil(days));
+          const eta2 = new Date(to); eta2.setDate(eta2.getDate() + Math.ceil(days));
           etas[d.key] = { eta1, eta2, days };
         }
       });
