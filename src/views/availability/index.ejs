@@ -9,12 +9,10 @@
     table { font-size: 8px !important; }
     th, td { color: #111 !important; border-bottom: 1px solid #ddd !important; padding: 2px 3px !important; }
     th { background: #f3f4f6 !important; font-weight: 700 !important; }
-    .text-emerald-300, .text-cyan-300, .text-blue-300 { color: #111 !important; }
-    .text-slate-400, .text-slate-500 { color: #666 !important; }
     .sticky { position: static !important; }
     .print-header { display: block !important; }
     a { color: #111 !important; text-decoration: none !important; }
-    .badge-us, .badge-cn, .badge-pm { border: 1px solid #999 !important; background: #eee !important; color: #111 !important; }
+    .badge-tag { border: 1px solid #999 !important; background: #eee !important; color: #111 !important; }
   }
   .print-header { display: none; }
   .sort-btn { cursor: pointer; user-select: none; }
@@ -22,11 +20,12 @@
   .sort-btn::after { content: ' ↕'; font-size: 8px; opacity: 0.4; }
   .sort-btn.asc::after { content: ' ↑'; opacity: 1; }
   .sort-btn.desc::after { content: ' ↓'; opacity: 1; }
-  .badge-us { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(239,68,68,0.15); color: #fca5a5; }
-  .badge-cn { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(251,191,36,0.15); color: #fcd34d; }
-  .badge-pm { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(99,102,241,0.15); color: #a5b4fc; }
-  .badge-sc { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(16,185,129,0.12); color: #6ee7b7; }
-  .badge-dk { font-size: 8px; padding: 1px 3px; border-radius: 3px; background: rgba(139,92,246,0.12); color: #c4b5fd; }
+  .badge-tag { font-size: 8px; padding: 1px 4px; border-radius: 3px; display: inline-block; line-height: 1.3; }
+  .bg-open { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  .bg-us { background: rgba(239,68,68,0.12); color: #fca5a5; }
+  .bg-cn { background: rgba(251,191,36,0.12); color: #fcd34d; }
+  .bg-pm { background: rgba(99,102,241,0.12); color: #a5b4fc; }
+  .bg-fs { background: rgba(244,114,182,0.12); color: #f9a8d4; }
 </style>
 
 <div class="print-header" style="padding: 20px 0 10px;">
@@ -34,15 +33,12 @@
   <p style="font-size: 11px; color: #666; margin-top: 4px;">
     Generated: <%= new Date().toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) %> · <%= vessels.length %> vessels
   </p>
-  <p style="font-size: 9px; color: #999; margin-top: 2px;">US = US-trade OK · CN = Chinese-built · PM = Panamax · SC = Scrubber/DF · DK = Deck Tank</p>
 </div>
 
 <div class="flex items-center justify-between mb-6 no-print">
   <div>
-    <h2 class="text-2xl font-bold text-white">Fleet Availability — Open Tonnage</h2>
-    <p class="text-slate-400 text-sm mt-1">
-      <%= vessels.length %> vessels with open positions · ETAs to loading ports
-    </p>
+    <h2 class="text-2xl font-bold text-white">Fleet Availability</h2>
+    <p class="text-slate-400 text-sm mt-1"><%= vessels.length %> vessels · ETAs from open position</p>
   </div>
   <div class="flex items-center gap-2 flex-wrap">
     <select id="filterController" onchange="filterTable()" class="input input-sm">
@@ -56,19 +52,23 @@
       <option value="ballast">Ballast</option>
       <option value="loaded">Loaded</option>
     </select>
+    <select id="filterAvail" onchange="filterTable()" class="input input-sm">
+      <option value="">All Status</option>
+      <option value="open">Potentially Open</option>
+    </select>
     <select id="filterPmax" onchange="filterTable()" class="input input-sm">
       <option value="">All Sizes</option>
-      <option value="1">Panamax Only</option>
+      <option value="1">Panamax</option>
       <option value="0">Non-Panamax</option>
     </select>
     <select id="filterUS" onchange="filterTable()" class="input input-sm">
-      <option value="">US Trade: All</option>
-      <option value="1">US OK ✓</option>
+      <option value="">US: All</option>
+      <option value="1">US OK</option>
       <option value="0">US Restricted</option>
     </select>
-    <input type="text" id="searchInput" placeholder="Search vessel..." class="input input-sm w-36" oninput="filterTable()">
-    <a href="/availability/export" class="btn btn-sm" style="background: #0f766e; color: white; padding: 4px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: none;">
-      📊 Save Excel
+    <input type="text" id="searchInput" placeholder="Search..." class="input input-sm w-32" oninput="filterTable()">
+    <a href="/availability/export" class="btn btn-sm" style="background: #0f766e; color: white; padding: 4px 12px; border-radius: 6px; font-size: 11px; text-decoration: none;">
+      📊 Excel
     </a>
   </div>
 </div>
@@ -79,18 +79,22 @@
       <thead>
         <tr>
           <th class="sticky left-0 z-20 bg-slate-900 w-8">#</th>
-          <th class="sticky left-8 z-20 bg-slate-900 min-w-[130px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
+          <th class="sticky left-8 z-20 bg-slate-900 min-w-[120px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
           <th class="sort-btn" data-col="cbm" onclick="sortTable('cbm')">CBM</th>
           <th class="sort-btn" data-col="blt" onclick="sortTable('blt')">BLT</th>
-          <th>Flags</th>
           <th class="sort-btn" data-col="ctrl" onclick="sortTable('ctrl')">Controller</th>
           <th class="sort-btn" data-col="state" onclick="sortTable('state')">State</th>
+          <th>Cargo</th>
           <th class="sort-btn" data-col="pos" onclick="sortTable('pos')">Position</th>
-          <th class="sort-btn" data-col="cape" onclick="sortTable('cape')">v Cape</th>
+          <th>Last Port</th>
+          <th>Next Dest</th>
+          <th class="sort-btn" data-col="avail" onclick="sortTable('avail')">Status</th>
+          <th class="sort-btn" data-col="seen" onclick="sortTable('seen')">Last Seen</th>
           <th class="border-l border-emerald-800 text-emerald-300 sort-btn" data-col="from" onclick="sortTable('from')">Open From</th>
           <th class="text-emerald-300 sort-btn" data-col="to" onclick="sortTable('to')">Open To</th>
+          <th class="text-orange-300 text-center text-[9px]">Disch<br>Days</th>
           <% destinations.forEach(d => { %>
-            <th class="border-l border-slate-700 text-center text-cyan-300 min-w-[80px] sort-btn" data-col="eta_<%= d.key %>" onclick="sortTable('eta_<%= d.key %>')">ETA<br><%= d.short_label %></th>
+            <th class="border-l border-slate-700 text-center text-cyan-300 min-w-[75px] sort-btn" data-col="eta_<%= d.key %>" onclick="sortTable('eta_<%= d.key %>')">ETA<br><%= d.short_label %></th>
           <% }) %>
           <th class="border-l border-slate-700">Notes</th>
         </tr>
@@ -99,13 +103,15 @@
         <% vessels.forEach((v, i) => { %>
         <tr data-controller="<%= v.controller || '' %>" data-state="<%= v.state || '' %>" data-name="<%= v.name %>"
             data-pmax="<%= v.panamax ? '1' : '0' %>" data-us="<%= v.us_trade ? '1' : '0' %>"
+            data-avail="<%= v.vessel_availability || '' %>"
             data-sort-name="<%= v.name %>"
             data-sort-cbm="<%= v.cbm || 0 %>"
             data-sort-blt="<%= v.built_year || 0 %>"
             data-sort-ctrl="<%= v.controller || '' %>"
             data-sort-state="<%= v.state || '' %>"
             data-sort-pos="<%= v.position || '' %>"
-            data-sort-cape="<%= v.laden_v_cape || '' %>"
+            data-sort-avail="<%= v.vessel_availability || '' %>"
+            data-sort-seen="<%= v.position_time ? new Date(v.position_time).getTime() : 0 %>"
             data-sort-from="<%= v.open_from ? new Date(v.open_from).getTime() : 0 %>"
             data-sort-to="<%= v.open_to ? new Date(v.open_to).getTime() : 0 %>"
             <% destinations.forEach(d => { %>
@@ -114,19 +120,23 @@
         >
           <td class="sticky left-0 bg-slate-900 text-slate-500 text-[10px]"><%= i + 1 %></td>
           <td class="sticky left-8 bg-slate-900">
-            <a href="/vessel-intel/<%= v.kpler_vessel_id %>" class="text-white font-medium hover:text-cyan-300 transition-colors"><%= v.name %></a>
-            <% if (v.is_ethylene_capable) { %><span class="text-emerald-400 text-[9px] ml-0.5" title="Ethylene capable">⬡</span><% } %>
+            <a href="/vessel-intel/<%= v.kpler_vessel_id %>" class="text-white font-medium hover:text-cyan-300 transition-colors text-[11px]"><%= v.name %></a>
+            <div class="flex gap-0.5 mt-0.5">
+              <% if (v.us_trade) { %><span class="badge-tag bg-us" title="US Trade OK">US</span><% } %>
+              <% if (v.chinese_built) { %><span class="badge-tag bg-cn" title="Chinese Built">CN</span><% } %>
+              <% if (v.panamax) { %><span class="badge-tag bg-pm" title="Panamax">PM</span><% } %>
+              <% if (v.is_ethylene_capable) { %><span class="badge-tag" style="background:rgba(16,185,129,0.12);color:#6ee7b7" title="Ethylene">ETH</span><% } %>
+              <% if (v.is_floating_storage) { %><span class="badge-tag bg-fs" title="Floating Storage">FS</span><% } %>
+            </div>
           </td>
           <td class="text-slate-300"><%= v.cbm ? v.cbm.toLocaleString() : '' %></td>
           <td class="text-slate-400"><%= v.built_year || '' %></td>
-          <td class="whitespace-nowrap">
-            <% if (v.us_trade) { %><span class="badge-us" title="US Trade OK">US</span> <% } %>
-            <% if (v.chinese_built) { %><span class="badge-cn" title="Chinese Built">CN</span> <% } %>
-            <% if (v.panamax) { %><span class="badge-pm" title="Panamax">PM</span> <% } %>
-            <% if (v.scrubber_df) { %><span class="badge-sc" title="<%= v.scrubber_df %>">SC</span> <% } %>
-            <% if (v.deck_tank) { %><span class="badge-dk" title="Deck Tank">DK</span> <% } %>
+          <td class="text-blue-300 text-[10px]">
+            <%= v.controller || '' %>
+            <% if (v.charter_charterer) { %>
+              <div class="text-amber-300 text-[9px]">TC: <%= v.charter_charterer %></div>
+            <% } %>
           </td>
-          <td class="text-blue-300 text-[10px]"><%= v.controller || '' %></td>
           <td>
             <% if (v.state) { %>
               <span class="px-1 py-0.5 rounded text-[9px] font-medium
@@ -137,13 +147,90 @@
               </span>
             <% } %>
           </td>
-          <td class="text-white text-[10px] font-medium whitespace-nowrap"><%= v.position %></td>
-          <td class="text-[10px] text-amber-300"><%= v.laden_v_cape || '' %></td>
+          <td class="text-[10px] text-slate-300 max-w-[80px] truncate" title="<%= v.cargo_products || '' %>">
+            <%= v.cargo_products || '' %>
+          </td>
+          <td class="whitespace-nowrap">
+            <select class="bg-transparent text-white text-[10px] font-medium border-0 outline-none cursor-pointer p-0 w-full"
+                    style="appearance:none; -webkit-appearance:none;"
+                    onchange="savePosition(<%= v.tracker_id %>, this.value)"
+                    title="<%= v._resolvedArea || '' %>">
+              <option value="" class="bg-slate-800" <%= !(v._open_position || v.position) ? 'selected' : '' %>>—</option>
+              <% positions.forEach(p => { %>
+                <option value="<%= p %>" class="bg-slate-800" 
+                  <%= (v._open_position || v.position || '') === p ? 'selected' : '' %>><%= p %></option>
+              <% }) %>
+            </select>
+          </td>
+          <td class="text-[10px] text-slate-400 whitespace-nowrap" title="<%= [v.last_port, v.last_port_country].filter(Boolean).join(', ') %>">
+            <%= v.last_port || '' %>
+          </td>
+          <td class="text-[10px] text-amber-300 whitespace-nowrap">
+            <% 
+              const destZone = (v.next_dest_zone || '').trim();
+              const destAis = (v.ais_destination || '').trim();
+              const destEta = v.next_dest_eta || v.ais_eta;
+            %>
+            <% if (v._destSource === 'smart') { %>
+              <span title="AIS: <%= destAis %> (via <%= destZone %>)"><%= destAis %></span>
+              <span class="text-[8px] text-cyan-400/60 ml-0.5">via <%= destZone %></span>
+            <% } else { %>
+              <%= destZone || destAis || v.next_dest_name || '—' %>
+              <% if (!destZone && destAis) { %>
+                <span class="text-[8px] text-slate-500 ml-0.5">AIS</span>
+              <% } %>
+            <% } %>
+            <% if (destEta) { %>
+              <div class="text-[9px] text-slate-400"><%= new Date(destEta).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %></div>
+            <% } %>
+          </td>
+          <td>
+            <% if (v.vessel_availability === 'Potentially Open') { %>
+              <span class="badge-tag bg-open">Open</span>
+            <% } else if (v.vessel_availability) { %>
+              <span class="text-[9px] text-slate-400"><%= v.vessel_availability %></span>
+            <% } %>
+          </td>
+          <td class="text-[10px] whitespace-nowrap">
+            <% if (v.position_time) {
+              const now = new Date();
+              const seen = new Date(v.position_time);
+              const diffH = Math.round((now - seen) / 3600000);
+              const diffD = Math.round(diffH / 24);
+              const label = diffH < 24 ? diffH + 'h' : diffD + 'd';
+              const color = diffD > 7 ? 'text-red-400' : diffD > 3 ? 'text-amber-400' : diffD > 1 ? 'text-yellow-300' : 'text-slate-300';
+            %>
+              <span class="<%= color %>" title="<%= seen.toISOString().replace('T',' ').substring(0,16) %>"><%= label %> ago</span>
+            <% } %>
+          </td>
           <td class="border-l border-emerald-800/30 text-emerald-300 font-medium whitespace-nowrap">
-            <%= v.open_from ? new Date(v.open_from).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '' %>
+            <% if (v.open_from) {
+              const openDate = new Date(v.open_from);
+              if (openDate <= new Date()) { %>
+                <span class="badge-tag bg-open font-bold">NOW</span>
+            <% } else { %>
+                <%= openDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %>
+            <% }} %>
           </td>
           <td class="text-emerald-300/70 whitespace-nowrap">
-            <%= v.open_to ? new Date(v.open_to).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '' %>
+            <% if (v.open_to) {
+              const toDate = new Date(v.open_to);
+              if (toDate <= new Date()) { %>
+                <span class="text-[9px] text-slate-500">—</span>
+            <% } else { %>
+                <%= toDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %>
+            <% }} %>
+          </td>
+          <td class="text-center">
+            <% if (v._dischargeDays) { %>
+              <input type="number" class="bg-transparent text-orange-300 text-[10px] font-mono text-center w-10 border-0 outline-none"
+                     value="<%= v._dischargeDays %>" min="1" max="30"
+                     title="<%= v._open_position || '' %>: discharge days"
+                     data-area="<%= v._open_position || '' %>"
+                     onchange="saveDischarge(this)">
+            <% } else { %>
+              <span class="text-[9px] text-slate-600">—</span>
+            <% } %>
           </td>
           <% destinations.forEach(d => { %>
             <td class="border-l border-slate-800 text-center whitespace-nowrap">
@@ -161,8 +248,8 @@
               <% } %>
             </td>
           <% }) %>
-          <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[200px] truncate" title="<%= v.notes || '' %>">
-            <%= v.notes || '' %>
+          <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[180px] truncate" title="<%= v.notes || v.current_voyage || '' %>">
+            <%= v.notes || v.current_voyage || '' %>
           </td>
         </tr>
         <% }) %>
@@ -190,20 +277,13 @@ function sortTable(col) {
     if (btn.dataset.col === col) btn.classList.add(currentSort.dir);
   });
   
-  const isNumeric = ['cbm', 'blt', 'from', 'to'].includes(col) || col.startsWith('eta_');
+  const isNumeric = ['cbm', 'blt', 'from', 'to', 'seen'].includes(col) || col.startsWith('eta_');
   
   rows.sort((a, b) => {
     let va = a.getAttribute('data-sort-' + col) || '';
     let vb = b.getAttribute('data-sort-' + col) || '';
-    
-    if (isNumeric) {
-      va = parseFloat(va) || 0;
-      vb = parseFloat(vb) || 0;
-    } else {
-      va = va.toLowerCase();
-      vb = vb.toLowerCase();
-    }
-    
+    if (isNumeric) { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+    else { va = va.toLowerCase(); vb = vb.toLowerCase(); }
     let result = va < vb ? -1 : va > vb ? 1 : 0;
     return currentSort.dir === 'desc' ? -result : result;
   });
@@ -215,6 +295,7 @@ function sortTable(col) {
 function filterTable() {
   const ctrl = document.getElementById('filterController').value.toLowerCase();
   const state = document.getElementById('filterState').value.toLowerCase();
+  const avail = document.getElementById('filterAvail').value.toLowerCase();
   const pmax = document.getElementById('filterPmax').value;
   const us = document.getElementById('filterUS').value;
   const search = document.getElementById('searchInput').value.toLowerCase();
@@ -222,12 +303,14 @@ function filterTable() {
   document.querySelectorAll('#availTable tbody tr').forEach(row => {
     const rc = (row.dataset.controller || '').toLowerCase();
     const rs = (row.dataset.state || '').toLowerCase();
+    const ra = (row.dataset.avail || '').toLowerCase();
     const rn = (row.dataset.name || '').toLowerCase();
     const rp = row.dataset.pmax || '';
     const ru = row.dataset.us || '';
     
     const show = (!ctrl || rc.includes(ctrl)) &&
                  (!state || rs === state) &&
+                 (!avail || ra.includes(avail)) &&
                  (!pmax || rp === pmax) &&
                  (!us || ru === us) &&
                  (!search || rn.includes(search));
@@ -244,5 +327,27 @@ function renumber() {
       row.children[0].textContent = n;
     }
   });
+}
+
+async function savePosition(trackerId, position) {
+  try {
+    await fetch('/availability/position/' + trackerId, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ position })
+    });
+    location.reload();
+  } catch(e) { console.error(e); }
+}
+
+async function saveDischarge(input) {
+  const area = input.dataset.area;
+  if (!area) return;
+  try {
+    await fetch('/availability/discharge/' + encodeURIComponent(area), {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ days: input.value })
+    });
+    location.reload();
+  } catch(e) { console.error(e); }
 }
 </script>

@@ -33,6 +33,10 @@
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
     Destinations
   </a>
+  <a href="/voyage?tab=discharge" class="tab-btn <%= tab === 'discharge' ? 'active' : '' %>">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    Discharge <span class="text-[10px] text-slate-500 ml-1">(<%= dischargeSettings.length %>)</span>
+  </a>
 
   <!-- Test Lookup -->
   <div class="ml-auto flex items-center gap-1">
@@ -272,6 +276,43 @@
   </div>
 <% } %>
 
+<% if (tab === 'discharge') { %>
+  <div class="max-w-2xl">
+    <div class="card mb-3 p-3">
+      <form action="/voyage/discharge" method="POST" class="flex items-end gap-2">
+        <div class="flex-1">
+          <label class="block text-[10px] text-slate-500 mb-0.5">Area Name</label>
+          <input type="text" name="area_name" required placeholder="e.g. Far East" class="input input-sm w-full">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Discharge Days</label>
+          <input type="number" name="discharge_days" value="4" min="1" max="30" class="input input-sm w-20 text-center">
+        </div>
+        <button type="submit" class="btn btn-sm btn-success">Add</button>
+      </form>
+    </div>
+    <p class="text-[10px] text-slate-500 mb-2">Discharge days added to open_from calculation: ETA + transit days + discharge days = open date</p>
+    <div class="card p-0 overflow-hidden">
+      <table class="data-table">
+        <thead><tr><th>Area</th><th class="w-28 text-center">Discharge Days</th><th class="w-10"></th></tr></thead>
+        <tbody>
+        <% dischargeSettings.forEach(d => { %>
+          <tr data-id="<%= d.id %>">
+            <td class="text-white font-medium"><%= d.area_name %></td>
+            <td class="text-center">
+              <input type="number" class="inline-edit text-center text-cyan-300 w-16" 
+                     value="<%= d.discharge_days %>" min="1" max="30"
+                     data-field="discharge_days" onchange="saveDischarge(this)">
+            </td>
+            <td><button onclick="deleteItem('discharge', <%= d.id %>)" class="text-red-400 hover:text-red-300 text-[10px]">✕</button></td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
 <!-- Test Results Modal -->
 <div id="testModal" style="display:none" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
   <div class="bg-slate-800 border border-slate-600 rounded-xl p-5 w-[500px] max-h-[70vh] overflow-auto">
@@ -327,6 +368,15 @@ async function saveDest(input) {
   row.querySelectorAll('.inline-edit').forEach(el => fields[el.dataset.field] = el.value);
   try {
     const r = await fetch('/voyage/destinations/' + row.dataset.id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fields) });
+    if (r.ok) { input.style.backgroundColor='#065f4620'; setTimeout(()=>input.style.backgroundColor='',800); }
+  } catch(e) { input.style.backgroundColor='#7f1d1d40'; }
+}
+
+async function saveDischarge(input) {
+  const row = input.closest('tr');
+  const days = input.value;
+  try {
+    const r = await fetch('/voyage/discharge/' + row.dataset.id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ discharge_days: days }) });
     if (r.ok) { input.style.backgroundColor='#065f4620'; setTimeout(()=>input.style.backgroundColor='',800); }
   } catch(e) { input.style.backgroundColor='#7f1d1d40'; }
 }

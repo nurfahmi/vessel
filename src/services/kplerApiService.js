@@ -65,6 +65,7 @@ function extractFromList(v) {
     ais_destination: ais.rawDestination,
     ais_eta: ais.eta,
     next_dest_name: ndInstall.name,
+    next_dest_zone: ndZone.name || null,
     next_dest_country: typeof ndCountry === 'object' && ndCountry ? ndCountry.name : null,
     next_dest_eta: nd.eta,
     next_dest_type: ndInstall.shortType,
@@ -244,23 +245,39 @@ function extractTrackerData(vessel) {
     result.cargo = cargo.map(c => c.name).join(', ');
     result.cargo_volume = Math.abs(pc.flowQuantity?.volume || 0);
 
-    // Calculate open dates from vessel state + next destination
+    // Calculate open dates using transit_times table
     const nd = vessel.nextDestination || vessel.portCallInfo?.nextDestination;
     const state = vessel.state;
     const dep = pc.estimatedBerthDeparture ? new Date(pc.estimatedBerthDeparture) : null;
     const nextEta = nd?.eta ? new Date(nd.eta) : null;
+    const ndZone = nd?.zone?.name || nd?.installation?.name || null;
+
+    // Discharge days by region
+    const dischargeDays = (zone) => {
+      if (!zone) return 4;
+      const z = zone.toLowerCase();
+      if (/japan|korea|china|taiwan|indo|vietnam|thailand|malaysia|philippines|singapore|far east|australia|darwin/.test(z)) return 3; // Asia
+      if (/india|bangladesh|pakistan|galle|wci|eci/.test(z)) return 5; // India
+      if (/eu|flushing|terneuzen|bethioua|algeria|gibraltar|turkey|greece|east med|mohammedia/.test(z)) return 4; // Europe/Med
+      return 4; // default
+    };
+
+    // Loading days at load port
+    const loadingDays = 2;
 
     if (state === 'loaded' && nextEta) {
-      // Loaded → open after discharge at next port (+5 days)
-      result.open_from = new Date(nextEta.getTime() + 5 * 86400000);
+      // Loaded → heading to discharge → open = ETA + discharge days
+      result.open_from = new Date(nextEta.getTime() + dischargeDays(ndZone) * 86400000);
     } else if (state === 'ballast' && !nd && dep) {
-      // Ballast, no orders → open from departure
+      // Ballast, no orders → already open
       result.open_from = dep;
     } else if (state === 'ballast' && nextEta) {
-      // Ballast heading to load port → open when arrives
-      result.open_from = nextEta;
+      // Ballast heading to load port → need transit to discharge
+      // We'll calculate: ETA(load port) + loading + transit + discharge
+      // Transit lookup happens in availability route with DB access
+      // Here estimate: loadingDays + 14 avg transit + 4 discharge = +20
+      result.open_from = new Date(nextEta.getTime() + (loadingDays + 14 + 4) * 86400000);
     } else if (dep) {
-      // Fallback
       result.open_from = dep;
     }
 
@@ -348,17 +365,17 @@ async function syncAll(onProgress) {
         `INSERT INTO kpler_vessels (kpler_id, name, imo, mmsi, call_sign, flag, status,
           built_year, built_country, cbm, cargo_type, num_tanks, deadweight, max_speed, horsepower,
           is_ethylene_capable, state, is_open, lat, lon, speed, course, draught, position_time,
-          loaded, ais_destination, ais_eta, next_dest_name, next_dest_country, next_dest_eta,
+          loaded, ais_destination, ais_eta, next_dest_name, next_dest_zone, next_dest_country, next_dest_eta,
           next_dest_type, last_port, last_port_country, last_port_type, last_port_arrival,
           last_port_departure, vessel_availability, position_zones, zone_port, zone_country,
           controller, data_timestamp)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
           state=VALUES(state), is_open=VALUES(is_open), lat=VALUES(lat), lon=VALUES(lon),
           speed=VALUES(speed), course=VALUES(course), draught=VALUES(draught),
           position_time=VALUES(position_time), loaded=VALUES(loaded),
           ais_destination=VALUES(ais_destination), ais_eta=VALUES(ais_eta),
-          next_dest_name=VALUES(next_dest_name), next_dest_country=VALUES(next_dest_country),
+          next_dest_name=VALUES(next_dest_name), next_dest_zone=VALUES(next_dest_zone), next_dest_country=VALUES(next_dest_country),
           next_dest_eta=VALUES(next_dest_eta), controller=VALUES(controller),
           last_port=VALUES(last_port), last_port_country=VALUES(last_port_country),
           last_port_departure=VALUES(last_port_departure), vessel_availability=VALUES(vessel_availability),
@@ -370,7 +387,7 @@ async function syncAll(onProgress) {
          extracted.state, extracted.is_open, extracted.lat, extracted.lon,
          extracted.speed, extracted.course, extracted.draught, toMysqlDate(extracted.position_time),
          extracted.loaded, extracted.ais_destination, toMysqlDate(extracted.ais_eta),
-         extracted.next_dest_name, extracted.next_dest_country, toMysqlDate(extracted.next_dest_eta),
+         extracted.next_dest_name, extracted.next_dest_zone, extracted.next_dest_country, toMysqlDate(extracted.next_dest_eta),
          extracted.next_dest_type, extracted.last_port, extracted.last_port_country,
          extracted.last_port_type, toMysqlDate(extracted.last_port_arrival),
          toMysqlDate(extracted.last_port_departure), extracted.vessel_availability,

@@ -153,4 +153,22 @@ const PortAlias = {
   }
 };
 
-module.exports = { Destination, TransitTime, PortArea, PortAlias };
+const DischargeSetting = {
+  async getAll() {
+    const [rows] = await db.query('SELECT * FROM discharge_settings ORDER BY area_name');
+    return rows;
+  },
+  async update(id, days) {
+    await db.query('UPDATE discharge_settings SET discharge_days = ? WHERE id = ?', [days, id]);
+  },
+  async create(data) {
+    const [r] = await db.query('INSERT INTO discharge_settings (area_name, discharge_days) VALUES (?, ?)',
+      [data.area_name, data.discharge_days || 4]);
+    return r.insertId;
+  },
+  async delete(id) {
+    await db.query('DELETE FROM discharge_settings WHERE id = ?', [id]);
+  }
+};
+
+module.exports = { Destination, TransitTime, PortArea, PortAlias, DischargeSetting };

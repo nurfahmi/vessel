@@ -309,6 +309,25 @@ const vesselAnalysisController = {
       let voyages = [];
       try {
         voyages = await kplerApi.fetchVoyages(kplerId);
+        
+        // Save nearest forecasted load date
+        const now = new Date();
+        const forecastLoads = voyages
+          .filter(v => v.portCalls?.some(pc => pc.forecasted && pc.operation === 'LOAD'))
+          .map(v => {
+            const loadPC = v.portCalls.find(pc => pc.operation === 'LOAD');
+            return { date: loadPC?.eta || v.start, zone: loadPC?.zone?.name };
+          })
+          .filter(f => f.date && new Date(f.date) > now)
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        if (forecastLoads.length) {
+          const next = forecastLoads[0];
+          await db.query(
+            'UPDATE kpler_vessels SET next_forecast_load = ?, next_forecast_load_zone = ? WHERE kpler_id = ?',
+            [new Date(next.date), next.zone || null, kplerId]
+          );
+        }
       } catch (e) { console.error('Voyages fetch error:', e.message); }
 
       res.render('vessel-intel/index', { vessel: detail, cached: null, insights, voyages });
