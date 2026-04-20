@@ -75,6 +75,10 @@ const PORT = process.env.PORT || 3099;
 app.listen(PORT, () => {
   console.log(`🚢 VLGC Sorter running on http://localhost:${PORT}`);
 
+  // Init voyage tables & seed data
+  const { initVoyageTables } = require('./src/services/voyageDbInit');
+  initVoyageTables();
+
   // Start Kpler token refresh cron
   const { startTokenCron, startSyncCron } = require('./src/services/kplerCron');
   startTokenCron();

@@ -46,12 +46,17 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>#</th><th>Vessel Name</th><th>Built</th><th>CBM</th><th>US</th><th>CN</th><th>PMX</th><th>DT</th><th>S/DF</th><th>Controller</th><th>Head Owner</th><th>IMO</th><th class="w-12"></th>
+          <th>Tracked</th><th>#</th><th>Vessel Name</th><th>Built</th><th>CBM</th><th>US</th><th>CN</th><th>PMX</th><th>DT</th><th>S/DF</th><th>Controller</th><th>Head Owner</th><th>IMO</th><th class="w-12"></th>
         </tr>
       </thead>
       <tbody>
         <% vessels.forEach((v, i) => { %>
           <tr>
+            <td class="text-center">
+              <input type="checkbox" <%= v.tracked ? 'checked' : '' %>
+                onchange="fetch('/vessels/api/toggle-tracked/<%= v.id %>',{method:'POST'}).then(r=>r.json()).then(d=>{this.checked=d.tracked})" 
+                class="w-4 h-4 accent-emerald-500 cursor-pointer" title="Track this vessel">
+            </td>
             <td class="text-slate-500"><%= i + 1 %></td>
             <td class="font-medium text-white"><%= v.name %></td>
             <td><%= v.built || '' %></td>

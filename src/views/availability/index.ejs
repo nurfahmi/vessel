@@ -161,8 +161,11 @@
               <% } %>
             </td>
           <% }) %>
-          <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[200px] truncate" title="<%= v.notes || '' %>">
-            <%= v.notes || '' %>
+          <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[200px]">
+            <input type="text" value="<%= (v.notes || '').replace(/"/g, '&quot;') %>" 
+              class="w-full bg-transparent border-0 text-slate-400 text-[10px] px-0 focus:text-white focus:ring-0"
+              onblur="saveNotes(<%= v.id %>, this.value)" onkeydown="if(event.key==='Enter'){this.blur()}"
+              title="Click to edit notes" placeholder="—">
           </td>
         </tr>
         <% }) %>
@@ -243,6 +246,13 @@ function renumber() {
       n++;
       row.children[0].textContent = n;
     }
+  });
+}
+
+function saveNotes(trackerId, notes) {
+  fetch('/availability/api/save-notes', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ trackerId, notes })
   });
 }
 </script>
