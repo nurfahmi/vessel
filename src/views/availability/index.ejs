@@ -248,7 +248,7 @@
               title="<%= (v._notes || '').replace(/"/g, '&quot;') %>"
               onclick="openNoteModal(<%= v.kpler_id %>, this.dataset.note)"
               data-note="<%= (v._notes || '').replace(/"/g, '&quot;') %>">
-            <div class="text-[10px] text-slate-400 truncate"><%= v._notes ? (v._notes.length > 20 ? v._notes.substring(0,20) + '…' : v._notes) : '—' %></div>
+            <div class="text-[10px] text-slate-400 truncate"><%= v._notes ? v._notes.split('\n')[0] : '—' %></div>
           </td>
           <td>
             <input class="inline-input text-cyan-300" value="<%= v.avail_voyage || '' %>" placeholder="—"
@@ -464,7 +464,7 @@ function saveNoteModal() {
   if (cell) {
     cell.dataset.note = value;
     cell.title = value;
-    cell.querySelector('div').textContent = value ? (value.length > 20 ? value.substring(0,20) + '…' : value) : '—';
+    cell.querySelector('div').textContent = value ? value.split('\n')[0] : '—';
   }
   document.getElementById('noteModal').style.display = 'none';
 }
