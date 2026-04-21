@@ -58,73 +58,83 @@ const vesselAnalysisController = {
   async show(req, res) {
     try {
       const kplerId = parseInt(req.params.kpler_id);
-      
+
+      // Check if recently enriched (< 6 hours) — skip API, use cached data
+      const SIX_HOURS = 6 * 60 * 60 * 1000;
+      let [cachedRows] = await db.query('SELECT * FROM kpler_vessels WHERE kpler_id = ? AND enriched_at IS NOT NULL', [kplerId]);
+      const isFresh = cachedRows.length && cachedRows[0].enriched_at && (Date.now() - new Date(cachedRows[0].enriched_at).getTime()) < SIX_HOURS;
+
+      // Build detail from cached DB row (reused for both isFresh and API-failure paths)
+      const buildCachedDetail = (c) => ({
+        name: c.name, imo: c.imo, mmsi: c.mmsi, callSign: c.call_sign,
+        flag: c.flag || c.flag_name, status: c.status, state: c.state,
+        type: c.vessel_type_class || 'VLGC', kplerId: c.kpler_id,
+        shipClass: c.ship_class,
+        builtYear: c.built_year || c.build_year, builtMonth: c.built_month,
+        builtCountry: c.built_country, builder: c.builder,
+        age: (c.built_year || c.build_year) ? (new Date().getFullYear() - (c.built_year || c.build_year)) : null,
+        cbm: c.cbm || c.capacity_cbm, cargoType: c.cargo_type,
+        numTanks: c.num_tanks || c.number_tanks,
+        deadweight: c.deadweight, grossTonnage: c.gross_tonnage,
+        beam: c.beam, maxSpeed: c.max_speed, horsepower: c.horsepower,
+        isEthylene: c.is_ethylene_capable, isFloatingStorage: c.is_floating_storage,
+        lat: c.lat ? parseFloat(c.lat) : null, lon: c.lon ? parseFloat(c.lon) : null,
+        speed: c.speed ? parseFloat(c.speed) : null, heading: c.heading,
+        draught: c.draught ? parseFloat(c.draught) : null, course: c.course ? parseFloat(c.course) : null,
+        positionTime: c.position_time,
+        aisDestination: c.ais_destination, aisEta: c.ais_eta,
+        nextDestName: c.next_dest_name || c.next_dest_zone, nextDestCountry: c.next_dest_country,
+        nextDestEta: c.next_dest_eta,
+        loaded: c.loaded, cargoProducts: c.cargo_products ? c.cargo_products.split(', ') : [],
+        currentVolume: c.current_volume ? parseFloat(c.current_volume) : null,
+        currentMass: c.current_mass ? parseFloat(c.current_mass) : null,
+        portName: c.zone_port || c.last_port_zone || c.last_port,
+        country: c.zone_country || c.last_port_country,
+        zones: c.parent_zones ? c.parent_zones.split(', ') : (c.position ? [c.position] : []),
+        vesselAvailability: c.vessel_availability,
+        arrival: c.estimated_berth_arrival || c.last_port_arrival,
+        departure: c.estimated_berth_departure || c.last_port_departure,
+        portCallOperation: c.port_call_operation || c.last_port_operation,
+        partialCargo: !!c.partial_cargo, isSTS: !!c.is_sts,
+        portCallTags: [],
+        lastPortInstallation: c.last_port_installation || c.last_port,
+        lastPortBerth: c.last_port_berth,
+        stsPartner: c.sts_partner, stsVolume: c.sts_volume ? parseInt(c.sts_volume) : null,
+        flowVolume: c.flow_volume ? parseInt(c.flow_volume) : null,
+        flowMass: c.flow_mass ? parseInt(c.flow_mass) : null,
+        confirmedGrades: c.confirmed_grades ? c.confirmed_grades.split(', ') : [],
+        owner: c.owner, beneficialOwner: c.beneficial_owner,
+        operator: c.operator, manager: c.manager,
+        commercialManager: c.commercial_manager,
+        controller: c.controller, controllerCountry: c.controller_country,
+        ownerCountry: c.owner_country,
+        thirdPartyOperator: c.third_party_operator,
+        builderFull: c.builder,
+        portCallsMetrics: c.unloads_this_year ? { unloads: c.unloads_this_year, unloadedThisYearInTon: c.unloaded_ton_this_year, hireRate: c.hire_rate } : null,
+        charterContracts: c.charter_charterer ? [{ charterer: { name: c.charter_charterer }, startDate: c.charter_start, endDate: c.charter_end }] : [],
+        vesselAvailabilities: [],
+        isOpen: !!c.is_open,
+      });
+
+      // If recently enriched, serve from DB cache (no API call)
+      if (isFresh) {
+        return res.render('vessel-intel/index', { vessel: buildCachedDetail(cachedRows[0]), cached: null, insights: [], voyages: [] });
+      }
+
       // Try to fetch live data from API
       let vessel;
       try {
         vessel = await kplerApi.fetchVessel(kplerId);
       } catch (e) {
-        // Fallback: use enriched data from DB (kpler_vessels has full enrichment)
-        let [rows] = await db.query('SELECT * FROM kpler_vessels WHERE kpler_id = ?', [kplerId]);
-        if (!rows.length) [rows] = await db.query('SELECT * FROM kpler_fleet WHERE kpler_id = ?', [kplerId]);
-        if (!rows.length) {
+        // Fallback: use enriched data from DB
+        if (!cachedRows.length) [cachedRows] = await db.query('SELECT * FROM kpler_fleet WHERE kpler_id = ?', [kplerId]);
+        if (!cachedRows.length) {
           req.flash('error', 'Vessel not found');
           return res.redirect(req.headers.referer || '/kpler-vessels');
         }
-        const c = rows[0];
-        // If we have enriched data, build the full detail object from it
+        const c = cachedRows[0];
         if (c.enriched_at || c.controller || c.owner) {
-          const cachedDetail = {
-            name: c.name, imo: c.imo, mmsi: c.mmsi, callSign: c.call_sign,
-            flag: c.flag || c.flag_name, status: c.status, state: c.state,
-            type: c.vessel_type_class || 'VLGC', kplerId: c.kpler_id,
-            shipClass: c.ship_class,
-            builtYear: c.built_year || c.build_year, builtMonth: c.built_month,
-            builtCountry: c.built_country, builder: c.builder,
-            age: (c.built_year || c.build_year) ? (new Date().getFullYear() - (c.built_year || c.build_year)) : null,
-            cbm: c.cbm || c.capacity_cbm, cargoType: c.cargo_type,
-            numTanks: c.num_tanks || c.number_tanks,
-            deadweight: c.deadweight, grossTonnage: c.gross_tonnage,
-            beam: c.beam, maxSpeed: c.max_speed, horsepower: c.horsepower,
-            isEthylene: c.is_ethylene_capable, isFloatingStorage: c.is_floating_storage,
-            lat: c.lat ? parseFloat(c.lat) : null, lon: c.lon ? parseFloat(c.lon) : null,
-            speed: c.speed ? parseFloat(c.speed) : null, heading: c.heading,
-            draught: c.draught ? parseFloat(c.draught) : null, course: c.course ? parseFloat(c.course) : null,
-            positionTime: c.position_time,
-            aisDestination: c.ais_destination, aisEta: c.ais_eta,
-            nextDestName: c.next_dest_name || c.next_dest_zone, nextDestCountry: c.next_dest_country,
-            nextDestEta: c.next_dest_eta,
-            loaded: c.loaded, cargoProducts: c.cargo_products ? c.cargo_products.split(', ') : [],
-            currentVolume: c.current_volume ? parseFloat(c.current_volume) : null,
-            currentMass: c.current_mass ? parseFloat(c.current_mass) : null,
-            portName: c.zone_port || c.last_port_zone || c.last_port,
-            country: c.zone_country || c.last_port_country,
-            zones: c.parent_zones ? c.parent_zones.split(', ') : (c.position ? [c.position] : []),
-            vesselAvailability: c.vessel_availability,
-            arrival: c.estimated_berth_arrival || c.last_port_arrival,
-            departure: c.estimated_berth_departure || c.last_port_departure,
-            portCallOperation: c.port_call_operation || c.last_port_operation,
-            partialCargo: !!c.partial_cargo, isSTS: !!c.is_sts,
-            portCallTags: [],
-            lastPortInstallation: c.last_port_installation || c.last_port,
-            lastPortBerth: c.last_port_berth,
-            stsPartner: c.sts_partner, stsVolume: c.sts_volume ? parseInt(c.sts_volume) : null,
-            flowVolume: c.flow_volume ? parseInt(c.flow_volume) : null,
-            flowMass: c.flow_mass ? parseInt(c.flow_mass) : null,
-            confirmedGrades: c.confirmed_grades ? c.confirmed_grades.split(', ') : [],
-            owner: c.owner, beneficialOwner: c.beneficial_owner,
-            operator: c.operator, manager: c.manager,
-            commercialManager: c.commercial_manager,
-            controller: c.controller, controllerCountry: c.controller_country,
-            ownerCountry: c.owner_country,
-            thirdPartyOperator: c.third_party_operator,
-            builderFull: c.builder,
-            portCallsMetrics: c.unloads_this_year ? { unloads: c.unloads_this_year, unloadedThisYearInTon: c.unloaded_ton_this_year, hireRate: c.hire_rate } : null,
-            charterContracts: c.charter_charterer ? [{ charterer: { name: c.charter_charterer }, startDate: c.charter_start, endDate: c.charter_end }] : [],
-            vesselAvailabilities: [],
-            isOpen: !!c.is_open,
-          };
-          return res.render('vessel-intel/index', { vessel: cachedDetail, cached: null, insights: [], voyages: [] });
+          return res.render('vessel-intel/index', { vessel: buildCachedDetail(c), cached: null, insights: [], voyages: [] });
         }
         return res.render('vessel-intel/index', { vessel: null, cached: c, insights: [], voyages: [] });
       }
