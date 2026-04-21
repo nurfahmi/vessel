@@ -244,11 +244,11 @@
                 <%= toDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %>
             <% }} %>
           </td>
-          <td class="border-l border-slate-800">
-            <textarea class="inline-input" placeholder="—" rows="1"
-                   onchange="saveAvailField(<%= v.kpler_id %>, 'avail_notes', this.value)"
-                   oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
-                   style="min-width:120px;resize:none;overflow:hidden;"><%= v._notes || '' %></textarea>
+          <td class="border-l border-slate-800 max-w-[100px] cursor-pointer" 
+              title="<%= (v._notes || '').replace(/"/g, '&quot;') %>"
+              onclick="openNoteModal(<%= v.kpler_id %>, this.dataset.note)"
+              data-note="<%= (v._notes || '').replace(/"/g, '&quot;') %>">
+            <div class="text-[10px] text-slate-400 truncate"><%= v._notes ? (v._notes.length > 20 ? v._notes.substring(0,20) + '…' : v._notes) : '—' %></div>
           </td>
           <td>
             <input class="inline-input text-cyan-300" value="<%= v.avail_voyage || '' %>" placeholder="—"
@@ -286,6 +286,22 @@
         <% }) %>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- Notes Modal -->
+<div id="noteModal" style="display:none" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onclick="if(event.target===this)this.style.display='none'">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-5 w-[95vw] sm:w-[400px]">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-bold text-white">📝 Edit Notes</h3>
+      <button onclick="document.getElementById('noteModal').style.display='none'" class="text-slate-400 hover:text-white">✕</button>
+    </div>
+    <textarea id="noteModalText" rows="5" class="input w-full text-sm" style="resize:vertical;min-height:80px;" placeholder="Enter notes..."></textarea>
+    <input type="hidden" id="noteModalKplerId">
+    <div class="flex justify-end gap-2 mt-3">
+      <button onclick="document.getElementById('noteModal').style.display='none'" class="btn btn-sm" style="background:#334155;color:white;">Cancel</button>
+      <button onclick="saveNoteModal()" class="btn btn-sm btn-primary">Save</button>
+    </div>
   </div>
 </div>
 
@@ -430,5 +446,26 @@ function enrichAll(btn) {
     }
   };
   es.onerror = () => { es.close(); btn.disabled = false; btn.textContent = '⚡ Enrich'; };
+}
+
+function openNoteModal(kplerId, note) {
+  document.getElementById('noteModalKplerId').value = kplerId;
+  document.getElementById('noteModalText').value = note || '';
+  document.getElementById('noteModal').style.display = 'flex';
+  document.getElementById('noteModalText').focus();
+}
+
+function saveNoteModal() {
+  const kplerId = document.getElementById('noteModalKplerId').value;
+  const value = document.getElementById('noteModalText').value;
+  saveAvailField(kplerId, 'avail_notes', value);
+  // Update the cell in the table
+  const cell = document.querySelector(`tr[data-kpler="${kplerId}"] td[data-note]`);
+  if (cell) {
+    cell.dataset.note = value;
+    cell.title = value;
+    cell.querySelector('div').textContent = value ? (value.length > 20 ? value.substring(0,20) + '…' : value) : '—';
+  }
+  document.getElementById('noteModal').style.display = 'none';
 }
 </script>
