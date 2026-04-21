@@ -60,9 +60,11 @@ const vesselAnalysisController = {
       const kplerId = parseInt(req.params.kpler_id);
 
       // Check if recently enriched (< 6 hours) — skip API, use cached data
+      const forceRefresh = req.query.refresh === '1';
       const SIX_HOURS = 6 * 60 * 60 * 1000;
       let [cachedRows] = await db.query('SELECT * FROM kpler_vessels WHERE kpler_id = ? AND enriched_at IS NOT NULL', [kplerId]);
-      const isFresh = cachedRows.length && cachedRows[0].enriched_at && (Date.now() - new Date(cachedRows[0].enriched_at).getTime()) < SIX_HOURS;
+      const isFresh = !forceRefresh && cachedRows.length && cachedRows[0].enriched_at && (Date.now() - new Date(cachedRows[0].enriched_at).getTime()) < SIX_HOURS;
+      const lastUpdated = cachedRows.length && cachedRows[0].enriched_at ? cachedRows[0].enriched_at : null;
 
       // Build detail from cached DB row (reused for both isFresh and API-failure paths)
       const buildCachedDetail = (c) => ({
@@ -118,7 +120,7 @@ const vesselAnalysisController = {
 
       // If recently enriched, serve from DB cache (no API call)
       if (isFresh) {
-        return res.render('vessel-intel/index', { vessel: buildCachedDetail(cachedRows[0]), cached: null, insights: [], voyages: [] });
+        return res.render('vessel-intel/index', { vessel: buildCachedDetail(cachedRows[0]), cached: null, insights: [], voyages: [], lastUpdated, kplerId });
       }
 
       // Try to fetch live data from API
@@ -134,9 +136,9 @@ const vesselAnalysisController = {
         }
         const c = cachedRows[0];
         if (c.enriched_at || c.controller || c.owner) {
-          return res.render('vessel-intel/index', { vessel: buildCachedDetail(c), cached: null, insights: [], voyages: [] });
+          return res.render('vessel-intel/index', { vessel: buildCachedDetail(c), cached: null, insights: [], voyages: [], lastUpdated, kplerId });
         }
-        return res.render('vessel-intel/index', { vessel: null, cached: c, insights: [], voyages: [] });
+        return res.render('vessel-intel/index', { vessel: null, cached: c, insights: [], voyages: [], lastUpdated, kplerId });
       }
 
       const insights = analyzeVessel(vessel);
@@ -431,7 +433,7 @@ const vesselAnalysisController = {
         }
       } catch (e) { console.error('Voyages fetch error:', e.message); }
 
-      res.render('vessel-intel/index', { vessel: detail, cached: null, insights, voyages });
+      res.render('vessel-intel/index', { vessel: detail, cached: null, insights, voyages, lastUpdated: new Date(), kplerId });
     } catch (err) {
       console.error('Vessel intel error:', err);
       req.flash('error', 'Failed to load vessel data');
