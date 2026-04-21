@@ -111,7 +111,10 @@ router.get('/', isAuthenticated, async (req, res) => {
       e.vessel_availability = availStatus;
       e._notes = e.avail_notes || availNotes || '';
 
-      return { ...e, etas, position: pos, _isManualPos: !!e.fleet_position };
+      // Discharge days for this vessel's open position
+      const dDays = pos ? (dischargeMap[pos.toLowerCase()] || 0) : 0;
+
+      return { ...e, etas, position: pos, _isManualPos: !!e.fleet_position, _dischargeDays: dDays || null, _open_position: pos };
     });
 
     // Filter options
