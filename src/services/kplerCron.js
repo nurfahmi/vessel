@@ -45,6 +45,9 @@ async function refreshTokenJob() {
       // Save the new access token
       if (data.access_token) {
         await Setting.set('kpler_access_token', data.access_token);
+        // Sync in-memory cache so API service uses fresh token immediately
+        const kplerApi = require('./kplerApiService');
+        kplerApi.updateCachedToken(data.access_token, data.expires_in || 300);
       }
       
       // Save the new rotated refresh token (critical!)

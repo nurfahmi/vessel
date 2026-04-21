@@ -1,0 +1,505 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model ag_fixtures {
+  id         Int       @id @default(autoincrement())
+  laycan     DateTime? @db.Date
+  charterer  String?   @db.VarChar(100)
+  port       String?   @db.VarChar(100)
+  vessel     String?   @db.VarChar(150)
+  rate       String?   @db.VarChar(50)
+  region     String?   @db.VarChar(50)
+  year       Int?      @default(2025)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model coas {
+  id         Int     @id @default(autoincrement())
+  pool       String? @db.VarChar(100)
+  charterer  String? @db.VarChar(100)
+  route      String? @db.VarChar(100)
+  frequency  String? @db.VarChar(100)
+  rate_notes String? @db.Text
+  notes      String? @db.Text
+}
+
+model destinations {
+  id            Int             @id @default(autoincrement())
+  key           String          @unique(map: "key") @db.VarChar(50)
+  label         String          @db.VarChar(100)
+  short_label   String?         @db.VarChar(30)
+  sort_order    Int?            @default(0)
+  transit_times transit_times[]
+}
+
+model discharge_ports {
+  id        Int     @id @default(autoincrement())
+  port_name String? @db.VarChar(255)
+  receiver  String? @db.VarChar(255)
+}
+
+model discharge_settings {
+  id             Int    @id @default(autoincrement())
+  area_name      String @unique(map: "area_name") @db.VarChar(100)
+  discharge_days Int?   @default(4)
+}
+
+model drydock_schedule {
+  id             Int       @id @default(autoincrement())
+  vessel_name    String    @db.VarChar(150)
+  scheduled_date DateTime  @db.Date
+  end_date       DateTime? @db.Date
+  quarter        String?   @db.VarChar(10)
+  notes          String?   @db.Text
+}
+
+model highlighter_vessels {
+  id          Int    @id @default(autoincrement())
+  vessel_name String @db.VarChar(150)
+  category    String @db.VarChar(50)
+
+  @@index([category], map: "idx_category")
+  @@index([vessel_name], map: "idx_vessel")
+}
+
+model import_logs {
+  id            Int       @id @default(autoincrement())
+  type          String?   @db.VarChar(50)
+  filename      String?   @db.VarChar(255)
+  records_count Int?
+  imported_by   String?   @db.VarChar(100)
+  imported_at   DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model india_tracker {
+  id             Int       @id @default(autoincrement())
+  vessel_name    String    @db.VarChar(255)
+  built          String?   @db.VarChar(20)
+  cbm            Decimal?  @db.Decimal(10, 2)
+  ex_charterer   String?   @db.VarChar(100)
+  scrubber_df    String?   @default("none") @db.VarChar(20)
+  dd_date        DateTime? @db.Date
+  tc_expiry      String?   @db.VarChar(50)
+  tc_owner       String?   @db.VarChar(100)
+  controller     String?   @db.VarChar(100)
+  head_owner     String?   @db.VarChar(100)
+  position       String?   @db.VarChar(100)
+  open_from      DateTime? @db.Date
+  open_to        DateTime? @db.Date
+  relet          String?   @db.VarChar(10)
+  notes          String?   @db.Text
+  next_loading   String?   @db.VarChar(255)
+  current_voyage String?   @db.VarChar(255)
+  edited_by      String?   @db.VarChar(10)
+  updated_at     DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model iran_fs_vessels {
+  id                  Int       @id @default(autoincrement())
+  vessel_name         String    @db.VarChar(150)
+  built               String?   @db.VarChar(20)
+  cbm                 Decimal?  @db.Decimal(12, 2)
+  imo                 String?   @db.VarChar(20)
+  disponent           String?   @db.VarChar(100)
+  operator            String?   @db.VarChar(100)
+  previous_name       String?   @db.VarChar(150)
+  is_floating_storage Boolean?  @default(false)
+  actual_control      String?   @db.VarChar(100)
+  area                String?   @db.VarChar(50)
+  tc_expiry           DateTime? @db.Date
+  dd_date             DateTime? @db.Date
+  panama_fitted       Boolean?  @default(false)
+  scrubber_df         String?   @db.VarChar(20)
+  position            String?   @db.VarChar(100)
+  open_from           DateTime? @db.Date
+  notes               String?   @db.Text
+  category            String?   @default("india") @db.VarChar(30)
+}
+
+model kpler_data {
+  id                   Int       @id @default(autoincrement())
+  vessel_name          String?   @db.VarChar(255)
+  capacity_m3          Int?
+  deadweight           Int?
+  state                String?   @db.VarChar(50)
+  status               String?   @db.VarChar(50)
+  mmsi                 String?   @db.VarChar(20)
+  imo                  String?   @db.VarChar(20)
+  next_destination     String?   @db.VarChar(255)
+  next_destination_eta DateTime? @db.DateTime(0)
+  is_loaded            Int?      @default(0) @db.TinyInt
+  import_batch         String?   @db.VarChar(100)
+  imported_at          DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([import_batch], map: "idx_batch")
+}
+
+model kpler_fleet {
+  id                        Int                   @id @default(autoincrement())
+  kpler_id                  Int                   @unique(map: "kpler_id")
+  name                      String                @db.VarChar(255)
+  imo                       String?               @db.VarChar(20)
+  mmsi                      String?               @db.VarChar(20)
+  call_sign                 String?               @db.VarChar(20)
+  vessel_type_class         String?               @db.VarChar(50)
+  state                     String?               @db.VarChar(30)
+  status                    String?               @db.VarChar(50)
+  flag_name                 String?               @db.VarChar(100)
+  build_year                Int?
+  capacity_cbm              Int?
+  deadweight                Int?
+  is_ethylene_capable       Boolean?              @default(false)
+  is_floating_storage       Boolean?              @default(false)
+  is_open                   Boolean?              @default(false)
+  cargo_type                String?               @db.VarChar(50)
+  number_tanks              Int?
+  statcode                  String?               @db.VarChar(30)
+  commodity_types           String?               @db.VarChar(255)
+  classification            String?               @db.VarChar(100)
+  current_commodity_type    String?               @db.VarChar(100)
+  lat                       Decimal?              @db.Decimal(10, 6)
+  lon                       Decimal?              @db.Decimal(10, 6)
+  speed                     Decimal?              @db.Decimal(6, 2)
+  course                    Decimal?              @db.Decimal(6, 2)
+  draught                   Decimal?              @db.Decimal(5, 2)
+  heading                   Int?
+  position_time             DateTime?             @db.DateTime(0)
+  ais_destination           String?               @db.VarChar(255)
+  ais_eta                   DateTime?             @db.DateTime(0)
+  next_dest_zone            String?               @db.VarChar(255)
+  next_dest_zone_id         Int?
+  next_dest_installation    String?               @db.VarChar(255)
+  next_dest_installation_id Int?
+  next_dest_eta             DateTime?             @db.DateTime(0)
+  next_dest_source          String?               @db.VarChar(20)
+  loaded                    Boolean?              @default(false)
+  cargo_volume              Decimal?              @db.Decimal(12, 2)
+  cargo_mass                Decimal?              @db.Decimal(12, 2)
+  cargo_products            String?               @db.Text
+  controller                String?               @db.VarChar(255)
+  last_port                 String?               @db.VarChar(255)
+  last_port_country         String?               @db.VarChar(100)
+  tracked                   Boolean?              @default(false)
+  synced_at                 DateTime?             @default(now()) @db.DateTime(0)
+  position                  String?               @db.VarChar(100)
+  last_port_zone            String?               @db.VarChar(255)
+  auto_position             String?               @db.VarChar(100)
+  kpler_vessel_details      kpler_vessel_details?
+
+  @@index([imo], map: "idx_imo")
+  @@index([name], map: "idx_name")
+  @@index([state], map: "idx_state")
+  @@index([tracked], map: "idx_tracked")
+}
+
+model kpler_vessel_details {
+  id                     Int         @id @default(autoincrement())
+  kpler_id               Int         @unique(map: "kpler_id")
+  build_country          String?     @db.VarChar(100)
+  build_month            Int?
+  builder                String?     @db.VarChar(255)
+  gross_tonnage          Int?
+  beam                   Decimal?    @db.Decimal(8, 2)
+  max_load_cbm           Int?
+  horse_power            Int?
+  max_speed              Decimal?    @db.Decimal(5, 1)
+  managers               Json?
+  owners                 Json?
+  builders               Json?
+  commercial_managers    Json?
+  operators              Json?
+  beneficial_owners      Json?
+  insurers               Json?
+  hire_rate              Decimal?    @db.Decimal(6, 2)
+  unloads_this_year      Int?
+  unloaded_tons          Decimal?    @db.Decimal(12, 3)
+  charter_contracts      Json?
+  vessel_availability    String?     @db.Text
+  vessel_availabilities  Json?
+  position_snapshot      Json?
+  fetched_at             DateTime?   @default(now()) @db.DateTime(0)
+  last_port_zone         String?     @db.VarChar(255)
+  last_port_install      String?     @db.VarChar(255)
+  last_port_arrival      DateTime?   @db.DateTime(0)
+  last_port_departure    DateTime?   @db.DateTime(0)
+  last_port_availability String?     @db.Text
+  port_call_info         Json?
+  kpler_fleet            kpler_fleet @relation(fields: [kpler_id], references: [kpler_id], onDelete: Cascade, onUpdate: Restrict, map: "kpler_vessel_details_ibfk_1")
+}
+
+model kpler_vessels {
+  id                        Int       @id @default(autoincrement())
+  kpler_id                  Int       @unique(map: "kpler_id")
+  name                      String    @db.VarChar(100)
+  imo                       String?   @db.VarChar(20)
+  mmsi                      String?   @db.VarChar(20)
+  call_sign                 String?   @db.VarChar(20)
+  flag                      String?   @db.VarChar(50)
+  ship_class                String?   @db.VarChar(10)
+  status                    String?   @db.VarChar(20)
+  built_year                Int?
+  built_month               Int?
+  built_country             String?   @db.VarChar(50)
+  cbm                       Int?
+  cargo_type                String?   @db.VarChar(50)
+  num_tanks                 Int?
+  deadweight                Int?
+  gross_tonnage             Int?
+  beam                      Float?    @db.Float
+  max_speed                 Float?    @db.Float
+  horsepower                Int?
+  is_ethylene_capable       Boolean?  @default(false)
+  state                     String?   @db.VarChar(20)
+  is_open                   Boolean?  @default(false)
+  lat                       Float?
+  lon                       Float?
+  speed                     Float?    @db.Float
+  heading                   Float?    @db.Float
+  course                    Float?    @db.Float
+  draught                   Float?    @db.Float
+  position_time             DateTime? @db.DateTime(0)
+  loaded                    Boolean?  @default(false)
+  ais_destination           String?   @db.VarChar(100)
+  ais_eta                   DateTime? @db.DateTime(0)
+  next_dest_name            String?   @db.VarChar(100)
+  next_dest_zone            String?   @db.VarChar(255)
+  next_dest_country         String?   @db.VarChar(50)
+  next_dest_eta             DateTime? @db.DateTime(0)
+  next_dest_type            String?   @db.VarChar(30)
+  last_port                 String?   @db.VarChar(100)
+  last_port_country         String?   @db.VarChar(50)
+  last_port_type            String?   @db.VarChar(30)
+  last_port_arrival         DateTime? @db.DateTime(0)
+  last_port_departure       DateTime? @db.DateTime(0)
+  vessel_availability       String?   @db.Text
+  port_call_operation       String?   @db.VarChar(20)
+  flow_volume               Int?
+  sts_partner               String?   @db.VarChar(100)
+  sts_volume                Int?
+  is_sts                    Boolean?  @default(false)
+  position_zones            Json?
+  zone_port                 String?   @db.VarChar(100)
+  zone_country              String?   @db.VarChar(50)
+  controller                String?   @db.VarChar(100)
+  controller_country        String?   @db.VarChar(50)
+  data_timestamp            DateTime? @db.DateTime(0)
+  created_at                DateTime? @default(now()) @db.Timestamp(0)
+  updated_at                DateTime? @default(now()) @db.Timestamp(0)
+  position                  String?   @db.VarChar(100)
+  position_detail           String?   @db.VarChar(200)
+  cargo                     String?   @db.VarChar(200)
+  cargo_volume              Int?
+  cargo_products            String?   @db.VarChar(200)
+  confirmed_grades          String?   @db.VarChar(200)
+  partial_cargo             Boolean?  @default(false)
+  current_volume            Int?
+  open_from                 DateTime? @db.DateTime(0)
+  open_to                   DateTime? @db.DateTime(0)
+  operator                  String?   @db.VarChar(100)
+  owner                     String?   @db.VarChar(100)
+  beneficial_owner          String?   @db.VarChar(100)
+  commercial_manager        String?   @db.VarChar(100)
+  manager                   String?   @db.VarChar(100)
+  builder                   String?   @db.VarChar(150)
+  enriched_at               DateTime? @db.DateTime(0)
+  estimated_berth_departure DateTime? @db.DateTime(0)
+  estimated_berth_arrival   DateTime? @db.DateTime(0)
+  last_port_operation       String?   @db.VarChar(30)
+  ais_set_time              DateTime? @db.DateTime(0)
+  current_mass              Decimal?  @db.Decimal(12, 2)
+  flow_mass                 Decimal?  @db.Decimal(12, 2)
+  parent_zones              String?   @db.Text
+  third_party_operator      String?   @db.VarChar(200)
+  unloads_this_year         Int?
+  unloaded_ton_this_year    Decimal?  @db.Decimal(14, 2)
+  hire_rate                 Decimal?  @db.Decimal(8, 2)
+  charter_charterer         String?   @db.VarChar(200)
+  charter_start             DateTime? @db.Date
+  charter_end               DateTime? @db.Date
+  owner_country             String?   @db.VarChar(100)
+  insurer                   String?   @db.VarChar(200)
+  is_floating_storage       Boolean?  @default(false)
+  last_port_installation    String?   @db.VarChar(200)
+  last_port_berth           String?   @db.VarChar(200)
+  next_forecast_load        DateTime? @db.Date
+  next_forecast_load_zone   String?   @db.VarChar(100)
+
+  @@index([flag], map: "idx_flag")
+  @@index([imo], map: "idx_imo")
+  @@index([name], map: "idx_name")
+  @@index([state], map: "idx_state")
+}
+
+model loaded_before {
+  id          Int     @id @default(autoincrement())
+  port        String? @db.VarChar(100)
+  vessel_name String? @db.VarChar(255)
+}
+
+model name_changes {
+  id               Int       @id @default(autoincrement())
+  current_name     String?   @db.VarChar(150)
+  previous_name    String?   @db.VarChar(300)
+  change_date      DateTime? @db.Date
+  built            String?   @db.VarChar(20)
+  imo              String?   @db.VarChar(20)
+  yard             String?   @db.VarChar(200)
+  yard_country     String?   @db.VarChar(50)
+  liq_cubic        Decimal?  @db.Decimal(12, 2)
+  commercial_owner String?   @db.VarChar(100)
+  status           String?   @db.VarChar(20)
+  fuel_option      String?   @db.VarChar(50)
+}
+
+model old_ships {
+  id            Int       @id @default(autoincrement())
+  vessel_name   String?   @db.VarChar(255)
+  built         String?   @db.VarChar(20)
+  cbm           Decimal?  @db.Decimal(10, 2)
+  disponent     String?   @db.VarChar(100)
+  comment       String?   @db.Text
+  head_owner    String?   @db.VarChar(100)
+  panama_fitted Boolean?  @default(false)
+  scrubber_df   String?   @db.VarChar(20)
+  dd_date       DateTime? @db.Date
+  tc_expiry     String?   @db.VarChar(50)
+}
+
+model pertamina {
+  id        Int     @id @default(autoincrement())
+  laycan    String? @db.VarChar(50)
+  load_port String? @db.VarChar(100)
+  owner     String? @db.VarChar(100)
+  vessel    String? @db.VarChar(255)
+  broker    String? @db.VarChar(100)
+  won       String? @db.VarChar(20)
+}
+
+model port_aliases {
+  id             Int     @id @default(autoincrement())
+  alias_name     String  @unique(map: "uq_alias") @db.VarChar(255)
+  canonical_name String  @db.VarChar(150)
+  notes          String? @db.Text
+}
+
+model port_areas {
+  id            Int     @id @default(autoincrement())
+  location_name String  @unique(map: "uq_loc") @db.VarChar(255)
+  area          String  @db.VarChar(100)
+  region        String? @db.VarChar(100)
+}
+
+model restricted_ships {
+  id            Int       @id @default(autoincrement())
+  vessel_name   String    @db.VarChar(150)
+  category      String    @db.VarChar(50)
+  notes         String?   @db.Text
+  approved_date DateTime? @db.Date
+}
+
+model scrubber_df_panamax {
+  id               Int       @id @default(autoincrement())
+  vessel_name      String?   @db.VarChar(255)
+  cbm              Decimal?  @db.Decimal(10, 2)
+  built            String?   @db.VarChar(20)
+  head_owner       String?   @db.VarChar(100)
+  category         String?   @db.VarChar(30)
+  fitting_location String?   @db.VarChar(100)
+  fitting_date     DateTime? @db.Date
+}
+
+model settings {
+  id            Int     @id @default(autoincrement())
+  setting_key   String  @unique(map: "setting_key") @db.VarChar(100)
+  setting_value String? @db.Text
+  description   String? @db.VarChar(255)
+}
+
+model tracker_entries {
+  id             Int       @id @default(autoincrement())
+  vessel_id      Int?
+  position       String?   @db.VarChar(100)
+  open_from      DateTime? @db.Date
+  open_to        DateTime? @db.Date
+  notes          String?   @db.Text
+  next_loading   String?   @db.VarChar(200)
+  current_voyage String?   @db.Text
+  edited_by      String?   @db.VarChar(10)
+  laden_v_cape   String?   @db.VarChar(50)
+  updated_at     DateTime? @default(now()) @db.Timestamp(0)
+  vessels        vessels?  @relation(fields: [vessel_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "tracker_entries_ibfk_1")
+
+  @@index([vessel_id], map: "idx_vessel_id")
+}
+
+model transit_times {
+  id             Int          @id @default(autoincrement())
+  from_position  String       @db.VarChar(150)
+  destination_id Int
+  transit_days   Decimal      @db.Decimal(8, 3)
+  notes          String?      @db.Text
+  destinations   destinations @relation(fields: [destination_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "transit_times_ibfk_1")
+
+  @@unique([from_position, destination_id], map: "uq_route")
+  @@index([destination_id], map: "destination_id")
+}
+
+model users {
+  id           Int         @id @default(autoincrement())
+  username     String      @unique(map: "username") @db.VarChar(50)
+  password     String      @db.VarChar(255)
+  display_name String?     @db.VarChar(100)
+  initials     String?     @db.VarChar(10)
+  role         users_role? @default(broker)
+  created_at   DateTime?   @default(now()) @db.Timestamp(0)
+}
+
+model vessels {
+  id              Int               @id @default(autoincrement())
+  name            String            @unique(map: "name") @db.VarChar(150)
+  built           String?           @db.VarChar(20)
+  cbm             Decimal?          @db.Decimal(12, 2)
+  us_trade        Boolean?          @default(false)
+  chinese_built   Boolean?          @default(false)
+  panamax         Boolean?          @default(false)
+  deck_tank       Boolean?          @default(false)
+  scrubber_df     String?           @default("none") @db.VarChar(30)
+  controller      String?           @db.VarChar(100)
+  head_owner      String?           @db.VarChar(100)
+  imo             String?           @db.VarChar(20)
+  mmsi            String?           @db.VarChar(20)
+  created_at      DateTime?         @default(now()) @db.Timestamp(0)
+  updated_at      DateTime?         @default(now()) @db.Timestamp(0)
+  kpler_vessel_id Int?
+  tracked         Boolean?          @default(true)
+  tracker_entries tracker_entries[]
+
+  @@index([controller], map: "idx_controller")
+  @@index([name], map: "idx_name")
+}
+
+model voyage_routes {
+  id           Int      @id @default(autoincrement())
+  from_port    String   @db.VarChar(150)
+  from_alias   String?  @db.VarChar(200)
+  destination  String   @db.VarChar(100)
+  transit_days Decimal? @db.Decimal(8, 3)
+  notes        String?  @db.Text
+  sort_order   Int?     @default(0)
+
+  @@index([destination], map: "idx_destination")
+  @@index([from_port], map: "idx_from_port")
+}
+
+enum users_role {
+  superadmin
+  admin
+  broker
+}

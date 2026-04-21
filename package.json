@@ -6,13 +6,18 @@
     "dev": "nodemon app.js",
     "start": "node app.js",
     "seed": "node src/services/seedService.js",
-    "setup-db": "node database/setup.js"
+    "setup-db": "node database/setup.js",
+    "db:migrate": "npx prisma migrate deploy",
+    "db:migrate:dev": "npx prisma migrate dev",
+    "db:pull": "npx prisma db pull",
+    "db:status": "npx prisma migrate status"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "connect-flash": "^0.1.1",
     "dotenv": "^17.4.2",
@@ -23,6 +28,7 @@
     "method-override": "^3.0.0",
     "multer": "^2.1.1",
     "mysql2": "^3.22.1",
+    "prisma": "^6.19.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

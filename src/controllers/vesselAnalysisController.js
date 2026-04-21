@@ -304,7 +304,42 @@ const vesselAnalysisController = {
           detail.lastPortBerth || null,
           kplerId
         ]);
-      } catch (e) { console.error('Auto-enrich save error:', e.message); }
+      } catch (e) { console.error('Auto-enrich kpler_vessels save error:', e.message); }
+
+      // Also save key fields to kpler_fleet (fleet list reads from this table)
+      try {
+        await db.query(`UPDATE kpler_fleet SET
+          state = COALESCE(?, state),
+          controller = COALESCE(?, controller),
+          lat = COALESCE(?, lat), lon = COALESCE(?, lon),
+          speed = COALESCE(?, speed), draught = COALESCE(?, draught), course = COALESCE(?, course),
+          heading = COALESCE(?, heading), position_time = COALESCE(?, position_time),
+          ais_destination = COALESCE(?, ais_destination), ais_eta = COALESCE(?, ais_eta),
+          next_dest_zone = COALESCE(?, next_dest_zone),
+          next_dest_installation = COALESCE(?, next_dest_installation),
+          next_dest_eta = COALESCE(?, next_dest_eta),
+          last_port = COALESCE(?, last_port),
+          last_port_zone = COALESCE(?, last_port_zone),
+          last_port_country = COALESCE(?, last_port_country),
+          cargo_products = COALESCE(?, cargo_products),
+          is_open = ?,
+          synced_at = NOW()
+        WHERE kpler_id = ?`, [
+          detail.state,
+          detail.controller,
+          detail.lat, detail.lon,
+          detail.speed, detail.draught, detail.course,
+          detail.heading, detail.positionTime ? new Date(detail.positionTime) : null,
+          detail.aisDestination, detail.aisEta ? new Date(detail.aisEta) : null,
+          detail.nextDestName, detail.nextDestName,
+          detail.nextDestEta ? new Date(detail.nextDestEta) : null,
+          detail.lastPortInstallation || portName,
+          portName, country,
+          detail.cargoProducts.length ? detail.cargoProducts.join(', ') : null,
+          detail.isOpen ? 1 : 0,
+          kplerId
+        ]);
+      } catch (e) { console.error('Auto-enrich kpler_fleet save error:', e.message); }
 
       // Fetch voyages (past + forecast) via GraphQL
       let voyages = [];

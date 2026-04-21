@@ -6,6 +6,7 @@ const KPLER_API_BASE = 'https://terminal.kpler.com/api';
 
 let cachedToken = null;
 let tokenExpiry = 0;
+let refreshPromise = null; // singleton lock to prevent concurrent refreshes
 
 /** Convert ISO datetime or Date object to MySQL format */
 function toMysqlDate(s) {
@@ -83,7 +84,41 @@ function extractFromList(v) {
 }
 
 /**
- * Get a fresh access token using the refresh token, or fallback to direct token
+ * Update in-memory token cache (called by cron after refresh)
+ */
+function updateCachedToken(token, expiresIn) {
+  cachedToken = token;
+  tokenExpiry = Date.now() + (expiresIn || 280) * 1000;
+}
+
+/**
+ * Force a single token refresh via the cron's refresh function.
+ * Uses a singleton promise to prevent concurrent refreshes (race condition fix).
+ */
+async function forceRefresh() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const { refreshTokenJob } = require('./kplerCron');
+      await refreshTokenJob();
+      // Read the freshly saved token from DB
+      const newToken = await Setting.get('kpler_access_token');
+      if (newToken) {
+        cachedToken = newToken;
+        tokenExpiry = Date.now() + 240000;
+        return newToken;
+      }
+      throw new Error('Token refresh produced no access token');
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
+/**
+ * Get access token. Reads from in-memory cache or DB (kept fresh by cron).
+ * Does NOT do its own OAuth refresh to avoid race conditions with the cron.
  */
 async function getAccessToken() {
   // Return cached if still valid (with 30s buffer)
@@ -91,53 +126,18 @@ async function getAccessToken() {
     return cachedToken;
   }
 
-  const clientId = await Setting.get('kpler_client_id');
-  const refreshToken = await Setting.get('kpler_refresh_token');
-
-  // Try refresh token first
-  if (refreshToken) {
-    try {
-      const body = new URLSearchParams({
-        client_id: clientId || '0LglhXfJvfepANl3HqVT9i1U0OwV0gSP',
-        redirect_uri: 'https://terminal.kpler.com/oauth/callback',
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken
-      });
-
-      const res = await fetch(KPLER_AUTH_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Origin': 'https://terminal.kpler.com',
-        },
-        body: body.toString()
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        cachedToken = data.access_token;
-        tokenExpiry = Date.now() + (data.expires_in || 300) * 1000;
-
-        // Save the new rotated refresh token
-        if (data.refresh_token) {
-          await Setting.set('kpler_refresh_token', data.refresh_token);
-        }
-        // Keep access token + timestamp in sync with cron
-        if (data.access_token) {
-          await Setting.set('kpler_access_token', data.access_token);
-        }
-        await Setting.set('kpler_token_last_refresh', new Date().toISOString());
-        return cachedToken;
-      }
-    } catch (e) { /* fall through to direct token */ }
+  // Read from DB (cron refreshes every 4 min and saves here)
+  const dbToken = await Setting.get('kpler_access_token');
+  if (dbToken) {
+    cachedToken = dbToken;
+    tokenExpiry = Date.now() + 240000; // trust for 4 min
+    return cachedToken;
   }
 
-  // Fallback: use direct access token from settings
-  const directToken = await Setting.get('kpler_access_token');
-  if (directToken) {
-    cachedToken = directToken;
-    tokenExpiry = Date.now() + 280000; // assume ~5 min
-    return cachedToken;
+  // No token in DB at all — try one refresh
+  const refreshToken = await Setting.get('kpler_refresh_token');
+  if (refreshToken) {
+    return forceRefresh();
   }
 
   throw new Error('No valid Kpler token. Go to Settings → paste kpler_access_token or kpler_refresh_token.');
@@ -167,9 +167,9 @@ async function kplerFetch(endpoint) {
   });
 
   if (res.status === 401) {
-    // Token expired, clear cache and retry once
-    cachedToken = null;
-    const newToken = await getAccessToken();
+    // Token expired — force a single refresh via cron (deduped)
+    console.log('[Kpler API] 401 received, forcing token refresh...');
+    const newToken = await forceRefresh();
     const retry = await fetch(`${KPLER_API_BASE}${endpoint}`, {
       headers: {
         'Accept': 'application/json',
@@ -178,7 +178,7 @@ async function kplerFetch(endpoint) {
         'User-Agent': 'VLGC-Sorter/1.0'
       }
     });
-    if (!retry.ok) throw new Error(`Kpler API error: ${retry.status}`);
+    if (!retry.ok) throw new Error(`Kpler API error: ${retry.status} (after refresh)`);
     return retry.json();
   }
 
@@ -737,6 +737,8 @@ async function fetchVesselDetail(kplerId) {
 module.exports = {
   getAccessToken,
   setAccessToken,
+  updateCachedToken,
+  forceRefresh,
   fetchVessel,
   fetchVoyages,
   extractTrackerData,
