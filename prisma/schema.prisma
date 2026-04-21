@@ -194,6 +194,8 @@ model kpler_fleet {
   avail_notes               String?               @db.Text
   avail_status              String?               @db.VarChar(50)
   avail_voyage              String?               @db.VarChar(255)
+  manual_open_from          DateTime?             @db.Date
+  manual_open_to            DateTime?             @db.Date
   kpler_vessel_details      kpler_vessel_details?
 
   @@index([imo], map: "idx_imo")

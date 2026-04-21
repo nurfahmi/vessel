@@ -28,6 +28,7 @@ router.get('/', isAuthenticated, async (req, res) => {
              d.last_port_departure as position_zones,
              f.position as fleet_position, f.auto_position,
              f.avail_notes, f.avail_status, f.avail_voyage,
+             f.manual_open_from, f.manual_open_to,
              v.us_trade, v.chinese_built, v.panamax, v.scrubber_df, v.deck_tank,
              v.kpler_vessel_id
       FROM kpler_fleet f
@@ -60,8 +61,11 @@ router.get('/', isAuthenticated, async (req, res) => {
       // Use manual position from fleet page, or auto-resolved from fleet page
       const pos = (e.fleet_position || e.auto_position || '').trim();
 
-      // Auto-calculate open_from based on ETA + discharge days
-      if (eta && pos && !e.open_from) {
+      // Use manual dates if set, otherwise auto-calculate
+      if (e.manual_open_from) {
+        e.open_from = new Date(e.manual_open_from);
+        e.open_to = e.manual_open_to ? new Date(e.manual_open_to) : new Date(e.open_from.getTime() + 86400000);
+      } else if (eta && pos) {
         const dDays = dischargeMap[pos.toLowerCase()] || 0;
         if (e.state === 'loaded') {
           e.open_from = new Date(new Date(eta).getTime() + dDays * 86400000);
@@ -111,6 +115,11 @@ router.get('/', isAuthenticated, async (req, res) => {
       e.vessel_availability = availStatus;
       e._notes = e.avail_notes || availNotes || '';
 
+      // Auto-set status if not manually set
+      if (!e.avail_status && availStatus === 'Potentially Open') {
+        e.avail_status = 'Open';
+      }
+
       // Discharge days for this vessel's open position
       const dDays = pos ? (dischargeMap[pos.toLowerCase()] || 0) : 0;
 
@@ -142,7 +151,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 // Save availability notes inline
 router.post('/api/save-avail-field', isAuthenticated, async (req, res) => {
   const { kpler_id, field, value } = req.body;
-  const allowed = ['avail_notes', 'avail_status', 'avail_voyage'];
+  const allowed = ['avail_notes', 'avail_status', 'avail_voyage', 'manual_open_from', 'manual_open_to'];
   if (!allowed.includes(field)) return res.status(400).json({ error: 'Invalid field' });
   await db.query(`UPDATE kpler_fleet SET ${field} = ? WHERE kpler_id = ?`, [value || null, kpler_id]);
   res.json({ ok: true });

@@ -89,6 +89,12 @@
       <option value="0">US Restricted</option>
     </select>
     <input type="text" id="searchInput" placeholder="Search..." class="input input-sm w-32" oninput="filterTable()">
+    <div class="flex items-center gap-1">
+      <span class="text-[9px] text-slate-500">Open:</span>
+      <input type="date" id="filterDateFrom" class="input input-sm text-[10px]" onchange="filterTable()" style="width:110px;">
+      <span class="text-[9px] text-slate-500">→</span>
+      <input type="date" id="filterDateTo" class="input input-sm text-[10px]" onchange="filterTable()" style="width:110px;">
+    </div>
     <div class="flex items-center gap-1" style="background:#1e293b;border-radius:6px;padding:2px 4px;">
       <button onclick="enrichAll(this)" class="btn btn-sm" style="background:#7c3aed;color:white;padding:4px 10px;border-radius:4px;font-size:10px;cursor:pointer;">
         ⚡ Enrich
@@ -229,20 +235,17 @@
               <span class="<%= color %>" title="<%= seen.toISOString().replace('T',' ').substring(0,16) %>"><%= label %> ago</span>
             <% } %>
           </td>
-          <td class="border-l border-emerald-800/30 text-emerald-300 font-medium whitespace-nowrap">
-            <% if (v.open_from) {
-              const openDate = new Date(v.open_from); %>
-              <%= openDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %>
-            <% } %>
+          <td class="border-l border-emerald-800/30 whitespace-nowrap">
+            <input type="date" class="inline-input text-emerald-300 font-medium" 
+                   value="<%= v.open_from ? new Date(v.open_from).toISOString().split('T')[0] : '' %>"
+                   onchange="saveDateField(<%= v.kpler_id %>, 'manual_open_from', this.value, this)"
+                   style="width:110px;" <%= v.manual_open_from ? 'title="Manual"' : 'title="Auto-calculated"' %>>
           </td>
-          <td class="text-emerald-300/70 whitespace-nowrap">
-            <% if (v.open_to) {
-              const toDate = new Date(v.open_to);
-              if (toDate <= new Date()) { %>
-                <span class="text-[9px] text-slate-500">—</span>
-            <% } else { %>
-                <%= toDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %>
-            <% }} %>
+          <td class="whitespace-nowrap">
+            <input type="date" class="inline-input text-emerald-300/70" 
+                   value="<%= v.open_to ? new Date(v.open_to).toISOString().split('T')[0] : '' %>"
+                   onchange="saveDateField(<%= v.kpler_id %>, 'manual_open_to', this.value, this)"
+                   style="width:110px;">
           </td>
           <td class="border-l border-slate-800 max-w-[100px] cursor-pointer" 
               title="<%= (v._notes || '').replace(/"/g, '&quot;') %>"
@@ -346,6 +349,10 @@ function filterTable() {
   const pmax = document.getElementById('filterPmax').value;
   const us = document.getElementById('filterUS').value;
   const search = document.getElementById('searchInput').value.toLowerCase();
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
+  const dfTs = dateFrom ? new Date(dateFrom).getTime() : 0;
+  const dtTs = dateTo ? new Date(dateTo + 'T23:59:59').getTime() : Infinity;
   
   document.querySelectorAll('#availTable tbody tr').forEach(row => {
     const rc = (row.dataset.controller || '').toLowerCase();
@@ -354,13 +361,17 @@ function filterTable() {
     const rn = (row.dataset.name || '').toLowerCase();
     const rp = row.dataset.pmax || '';
     const ru = row.dataset.us || '';
+    const rf = parseFloat(row.getAttribute('data-sort-from')) || 0;
+    
+    const dateMatch = (!dateFrom && !dateTo) || (rf > 0 && rf >= dfTs && rf <= dtTs);
     
     const show = (!ctrl || rc.includes(ctrl)) &&
                  (!state || rs === state) &&
                  (!avail || ra.toLowerCase().includes(avail)) &&
                  (!pmax || rp === pmax) &&
                  (!us || ru === us) &&
-                 (!search || rn.includes(search));
+                 (!search || rn.includes(search)) &&
+                 dateMatch;
     row.style.display = show ? '' : 'none';
   });
   renumber();
@@ -467,5 +478,16 @@ function saveNoteModal() {
     cell.querySelector('div').textContent = value ? value.split('\n')[0] : '—';
   }
   document.getElementById('noteModal').style.display = 'none';
+}
+
+function saveDateField(kplerId, field, value, input) {
+  fetch('/availability/api/save-avail-field', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kpler_id: kplerId, field, value: value || null })
+  }).then(r => r.json()).then(() => {
+    // Reload to recalculate ETAs from new dates
+    location.reload();
+  });
 }
 </script>
