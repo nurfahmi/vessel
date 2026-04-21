@@ -51,9 +51,9 @@
   </div>
 </div>
 
-<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
   <div>
-    <h2 class="text-2xl font-bold text-white">Kpler Fleet — VLGC Vessels</h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-white">Kpler Fleet — VLGC Vessels</h2>
     <p class="text-slate-400 text-sm mt-1"><%= vessels.length %> vessels shown</p>
   </div>
   <div class="flex items-center gap-2 flex-wrap">
@@ -104,7 +104,7 @@
 </div>
 
 <!-- Stats Bar -->
-<div class="grid grid-cols-7 gap-2 mb-4">
+<div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
   <div class="fleet-stat"><div class="val text-white"><%= stats.total %></div><div class="lbl">Total VLGC</div></div>
   <div class="fleet-stat"><div class="val text-red-400"><%= stats.no_ais %></div><div class="lbl">No AIS</div></div>
   <div class="fleet-stat"><div class="val text-blue-400"><%= stats.ballast %></div><div class="lbl">Ballast</div></div>

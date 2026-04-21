@@ -23,7 +23,7 @@
     .btn-success { background:#059669; color:#fff; }
     .btn-success:hover { background:#047857; }
     .btn-sm { padding:0.375rem 0.75rem; font-size:0.75rem; }
-    .input { background:#1e293b; border:1px solid #475569; border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:0.875rem; color:#fff; outline:none; }
+    .input { background:#1e293b; border:1px solid #475569; border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:0.875rem; color:#fff; outline:none; width:100%; box-sizing:border-box; }
     .input:focus { border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; }
     .input-sm { padding:0.25rem 0.5rem; font-size:0.75rem; }
     .card { background:rgba(30,41,59,0.5); border:1px solid rgba(51,65,85,0.5); border-radius:0.75rem; padding:1.25rem; backdrop-filter:blur(8px); }
@@ -33,43 +33,78 @@
     ::-webkit-scrollbar-track { background:#1e293b; }
     ::-webkit-scrollbar-thumb { background:#475569; border-radius:3px; }
     ::-webkit-scrollbar-thumb:hover { background:#64748b; }
+
+    /* Mobile sidebar */
+    #sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:40; }
+    #sidebar-overlay.active { display:block; }
+    @media (max-width: 768px) {
+      #sidebar { position:fixed; left:-100%; top:0; bottom:0; z-index:50; transition:left 0.3s ease; width:16rem; }
+      #sidebar.open { left:0; }
+      .mobile-header { display:flex !important; }
+      /* Responsive table */
+      .data-table { font-size:0.65rem; }
+      .data-table th, .data-table td { padding:0.25rem 0.375rem; }
+      .card { padding:0.75rem; }
+    }
+    @media (min-width: 769px) {
+      .mobile-header { display:none !important; }
+    }
   </style>
 </head>
 <body class="h-full bg-slate-900 text-slate-200">
+  <!-- Mobile Header -->
+  <div class="mobile-header items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-800" style="display:none;">
+    <button onclick="document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-overlay').classList.add('active');" class="text-slate-400 hover:text-white">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <h1 class="text-sm font-bold text-white flex items-center gap-2">
+      <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <%= appName %>
+    </h1>
+    <div class="w-6"></div>
+  </div>
+
+  <!-- Sidebar Overlay (mobile) -->
+  <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('open'); this.classList.remove('active');"></div>
+
   <div class="flex h-full">
     <!-- Sidebar -->
-    <aside class="w-56 bg-slate-950 border-r border-slate-800 flex flex-col flex-shrink-0">
-      <div class="p-4 border-b border-slate-800">
+    <aside id="sidebar" class="w-56 bg-slate-950 border-r border-slate-800 flex flex-col flex-shrink-0">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
         <h1 class="text-lg font-bold text-white flex items-center gap-2">
           <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           <%= appName %>
         </h1>
+        <!-- Close button (mobile) -->
+        <button class="md:hidden text-slate-400 hover:text-white" onclick="document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('active');">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
       </div>
       <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto text-slate-400">
-        <a href="/dashboard" class="sidebar-link <%= currentPath.startsWith('/dashboard') ? 'active' : '' %>">
+        <a href="/dashboard" class="sidebar-link <%= currentPath.startsWith('/dashboard') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
           Dashboard
         </a>
 
         <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Core</div>
-        <a href="/availability" class="sidebar-link <%= currentPath.startsWith('/availability') ? 'active' : '' %>">
+        <a href="/availability" class="sidebar-link <%= currentPath.startsWith('/availability') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           Availability
         </a>
 
         <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Data</div>
-        <a href="/kpler-vessels" class="sidebar-link <%= currentPath.startsWith('/kpler-vessels') ? 'active' : '' %>">
+        <a href="/kpler-vessels" class="sidebar-link <%= currentPath.startsWith('/kpler-vessels') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
           Kpler Fleet
         </a>
-        <a href="/voyage" class="sidebar-link <%= currentPath.startsWith('/voyage') ? 'active' : '' %>">
+        <a href="/voyage" class="sidebar-link <%= currentPath.startsWith('/voyage') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
           Voyage Days
         </a>
 
         <% if (user && user.role === 'superadmin') { %>
         <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Admin</div>
-        <a href="/settings" class="sidebar-link <%= currentPath.startsWith('/settings') ? 'active' : '' %>">
+        <a href="/settings" class="sidebar-link <%= currentPath.startsWith('/settings') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           Settings
         </a>
@@ -96,17 +131,26 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto">
+    <main class="flex-1 overflow-auto min-w-0">
       <% if (success && success.length) { %>
-        <div class="mx-6 mt-4 px-4 py-3 bg-emerald-900/50 border border-emerald-700 text-emerald-300 rounded-lg text-sm"><%= success %></div>
+        <div class="mx-4 md:mx-6 mt-4 px-4 py-3 bg-emerald-900/50 border border-emerald-700 text-emerald-300 rounded-lg text-sm"><%= success %></div>
       <% } %>
       <% if (error && error.length) { %>
-        <div class="mx-6 mt-4 px-4 py-3 bg-red-900/50 border border-red-700 text-red-300 rounded-lg text-sm"><%= error %></div>
+        <div class="mx-4 md:mx-6 mt-4 px-4 py-3 bg-red-900/50 border border-red-700 text-red-300 rounded-lg text-sm"><%= error %></div>
       <% } %>
-      <div class="p-6">
+      <div class="p-4 md:p-6">
         <%- body %>
       </div>
     </main>
   </div>
+
+  <script>
+    function closeSidebar() {
+      if (window.innerWidth < 769) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebar-overlay').classList.remove('active');
+      }
+    }
+  </script>
 </body>
 </html>

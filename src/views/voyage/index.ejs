@@ -1,14 +1,14 @@
 <% var pageTitle = 'Voyage Data' %>
 
-<div class="flex items-center justify-between mb-4">
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
   <div>
-    <h2 class="text-2xl font-bold text-white">Voyage Data</h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-white">Voyage Data</h2>
     <p class="text-slate-400 text-sm mt-1">Port-to-port transit times, area mappings, and aliases</p>
   </div>
   <div class="flex items-center gap-2">
-    <form method="GET" class="flex items-center gap-2">
+    <form method="GET" class="flex items-center gap-2 flex-wrap">
       <input type="hidden" name="tab" value="<%= tab %>">
-      <input type="text" name="q" value="<%= q %>" placeholder="Search..." class="input input-sm w-48">
+      <input type="text" name="q" value="<%= q %>" placeholder="Search..." class="input input-sm w-36 sm:w-48">
       <button type="submit" class="btn btn-sm btn-primary">Search</button>
       <% if (q) { %><a href="/voyage?tab=<%= tab %>" class="btn btn-sm bg-slate-700 text-white">Clear</a><% } %>
     </form>
@@ -16,7 +16,7 @@
 </div>
 
 <!-- Tabs -->
-<div class="flex gap-1 mb-4 border-b border-slate-700 pb-2">
+<div class="flex gap-1 mb-4 border-b border-slate-700 pb-2 overflow-x-auto">
   <a href="/voyage?tab=transit" class="tab-btn <%= tab === 'transit' ? 'active' : '' %>">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
     Transit Times <span class="text-[10px] text-slate-500 ml-1">(<%= destinations.reduce((s,d) => s+d.route_count, 0) %>)</span>
@@ -47,9 +47,9 @@
 
 <!-- ═══ TAB: TRANSIT TIMES ═══ -->
 <% if (tab === 'transit') { %>
-  <div class="flex gap-4">
+  <div class="flex flex-col md:flex-row gap-4">
     <!-- Destination sidebar -->
-    <div class="w-48 flex-shrink-0 space-y-0.5">
+    <div class="w-full md:w-48 flex-shrink-0 space-y-0.5 flex md:block gap-1 overflow-x-auto md:overflow-x-visible">
       <% destinations.forEach(d => { %>
         <a href="/voyage?tab=transit&dest=<%= d.id %>" 
            class="block px-3 py-2 rounded-lg text-xs transition-all
@@ -66,7 +66,7 @@
       <!-- Add form -->
       <% if (selectedDest) { %>
       <div class="card mb-3 p-3">
-        <form action="/voyage/transit" method="POST" class="flex items-end gap-2">
+        <form action="/voyage/transit" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
           <input type="hidden" name="destination_id" value="<%= selectedDest.id %>">
           <div class="flex-1">
             <label class="block text-[10px] text-slate-500 mb-0.5">From Position</label>
@@ -128,9 +128,9 @@
 
 <!-- ═══ TAB: PORT AREAS ═══ -->
 <% if (tab === 'areas') { %>
-  <div class="flex gap-4">
+  <div class="flex flex-col md:flex-row gap-4">
     <!-- Area sidebar -->
-    <div class="w-44 flex-shrink-0 space-y-0.5 max-h-[calc(100vh-250px)] overflow-y-auto">
+    <div class="w-full md:w-44 flex-shrink-0 space-y-0.5 flex md:block gap-1 overflow-x-auto md:overflow-x-visible md:max-h-[calc(100vh-250px)] md:overflow-y-auto">
       <a href="/voyage?tab=areas" class="block px-3 py-1.5 rounded text-xs text-slate-400 hover:bg-slate-800 hover:text-white <%= !selectedArea ? 'bg-blue-600/20 text-blue-300' : '' %>">All (<%= areaCount %>)</a>
       <% areas.forEach(a => { %>
         <a href="/voyage?tab=areas&area=<%= encodeURIComponent(a) %>" 
@@ -144,7 +144,7 @@
     <div class="flex-1">
       <!-- Add form -->
       <div class="card mb-3 p-3">
-        <form action="/voyage/areas" method="POST" class="flex items-end gap-2">
+        <form action="/voyage/areas" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
           <div class="flex-1">
             <label class="block text-[10px] text-slate-500 mb-0.5">AIS Location Name</label>
             <input type="text" name="location_name" required placeholder="e.g. Enterprise Houston" class="input input-sm w-full">
@@ -192,7 +192,7 @@
 <% if (tab === 'aliases') { %>
   <div class="max-w-3xl">
     <div class="card mb-3 p-3">
-      <form action="/voyage/aliases" method="POST" class="flex items-end gap-2">
+      <form action="/voyage/aliases" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
         <div class="flex-1">
           <label class="block text-[10px] text-slate-500 mb-0.5">Alias Name</label>
           <input type="text" name="alias_name" required placeholder="e.g. Ridley Island" class="input input-sm w-full">
@@ -234,7 +234,7 @@
 <% if (tab === 'destinations') { %>
   <div class="max-w-3xl">
     <div class="card mb-3 p-3">
-      <form action="/voyage/destinations" method="POST" class="flex items-end gap-2">
+      <form action="/voyage/destinations" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 flex-wrap">
         <div>
           <label class="block text-[10px] text-slate-500 mb-0.5">Key</label>
           <input type="text" name="key" required placeholder="e.g. AG" class="input input-sm w-32">
@@ -279,7 +279,7 @@
 <% if (tab === 'discharge') { %>
   <div class="max-w-2xl">
     <div class="card mb-3 p-3">
-      <form action="/voyage/discharge" method="POST" class="flex items-end gap-2">
+      <form action="/voyage/discharge" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
         <div class="flex-1">
           <label class="block text-[10px] text-slate-500 mb-0.5">Area Name</label>
           <input type="text" name="area_name" required placeholder="e.g. Far East" class="input input-sm w-full">
@@ -315,7 +315,7 @@
 
 <!-- Test Results Modal -->
 <div id="testModal" style="display:none" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-  <div class="bg-slate-800 border border-slate-600 rounded-xl p-5 w-[500px] max-h-[70vh] overflow-auto">
+  <div class="bg-slate-800 border border-slate-600 rounded-xl p-4 sm:p-5 w-[95vw] sm:w-[500px] max-h-[70vh] overflow-auto">
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-bold text-white">Lookup Test Results</h3>
       <button onclick="document.getElementById('testModal').style.display='none'" class="text-slate-400 hover:text-white">✕</button>
