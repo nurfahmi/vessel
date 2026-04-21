@@ -55,55 +55,55 @@
   </p>
 </div>
 
-<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 no-print gap-3">
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 no-print gap-2">
   <div>
-    <h2 class="text-xl sm:text-2xl font-bold text-white">Fleet Availability</h2>
-    <p class="text-slate-400 text-sm mt-1"><%= vessels.length %> vessels · ETAs from open position</p>
+    <h2 class="text-lg font-bold" style="color:var(--text-primary);">Fleet Availability</h2>
+    <p class="text-[11px] mt-0.5" style="color:var(--text-muted);"><%= vessels.length %> vessels · ETAs from open position</p>
   </div>
-  <div class="flex items-center gap-2 flex-wrap">
-    <select id="filterController" onchange="filterTable()" class="input input-sm">
-      <option value="">All Controllers</option>
-      <% controllers.forEach(c => { %>
-        <option value="<%= c %>" <%= filter === c ? 'selected' : '' %>><%= c %></option>
-      <% }) %>
-    </select>
-    <select id="filterState" onchange="filterTable()" class="input input-sm">
-      <option value="">All States</option>
-      <option value="ballast">Ballast</option>
-      <option value="loaded">Loaded</option>
-    </select>
-    <select id="filterAvail" onchange="filterTable()" class="input input-sm">
-      <option value="">All Status</option>
-      <option value="open">Open</option>
-      <option value="relet">Relet</option>
-      <option value="tc">TC</option>
-    </select>
-    <input type="text" id="searchInput" placeholder="Search..." class="input input-sm w-32" oninput="filterTable()">
-    <div class="flex items-center gap-1">
-      <span class="text-[9px] text-slate-500">Open:</span>
-      <input type="date" id="filterDateFrom" class="input input-sm text-[10px]" onchange="filterTable()" style="width:110px;">
-      <span class="text-[9px] text-slate-500">→</span>
-      <input type="date" id="filterDateTo" class="input input-sm text-[10px]" onchange="filterTable()" style="width:110px;">
-    </div>
-    <div class="flex items-center gap-1" style="background:#1e293b;border-radius:6px;padding:2px 4px;">
-      <button onclick="enrichAll(this)" class="btn btn-sm" style="background:#7c3aed;color:white;padding:4px 10px;border-radius:4px;font-size:10px;cursor:pointer;">
-        ⚡ Enrich
-      </button>
+  <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1" style="background:var(--bg-input);border-radius:6px;padding:2px 4px;">
+      <button onclick="enrichAll(this)" class="btn btn-sm" style="background:#7c3aed;color:white;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;">⚡ Enrich</button>
       <select id="enrichHours" style="background:transparent;color:#a78bfa;border:0;font-size:10px;outline:none;cursor:pointer;">
-        <option value="1">1h</option>
-        <option value="4">4h</option>
-        <option value="8">8h</option>
-        <option value="12" selected>12h</option>
-        <option value="24">24h</option>
-        <option value="0">Force All</option>
+        <option value="1">1h</option><option value="4">4h</option><option value="8">8h</option>
+        <option value="12" selected>12h</option><option value="24">24h</option><option value="0">Force</option>
       </select>
     </div>
-    <a href="/availability/export" class="btn btn-sm" style="background: #0f766e; color: white; padding: 4px 12px; border-radius: 6px; font-size: 11px; text-decoration: none;">
-      📊 Excel
-    </a>
+    <a href="/availability/export" class="btn btn-sm" style="background:#0f766e;color:white;padding:3px 10px;border-radius:4px;font-size:10px;text-decoration:none;">📊 Excel</a>
   </div>
-  <div id="enrichStatus" style="display:none;" class="text-[10px] text-purple-300 mt-1"></div>
 </div>
+<div class="filter-bar mb-3 no-print">
+  <input type="text" id="searchInput" placeholder="🔍 Search..." oninput="filterTable()" style="width:120px;">
+  <div class="filter-sep"></div>
+  <select id="filterController" onchange="filterTable()">
+    <option value="">All Operators</option>
+    <% controllers.forEach(c => { %>
+      <option value="<%= c %>" <%= filter === c ? 'selected' : '' %>><%= c %></option>
+    <% }) %>
+  </select>
+  <select id="filterState" onchange="filterTable()">
+    <option value="">All States</option>
+    <option value="ballast">Ballast</option>
+    <option value="loaded">Loaded</option>
+  </select>
+  <select id="filterAvail" onchange="filterTable()">
+    <option value="">All Status</option>
+    <option value="open">Open</option>
+    <option value="relet">Relet</option>
+    <option value="tc">TC</option>
+  </select>
+  <select id="filterPosition" onchange="filterTable()">
+    <option value="">All Positions</option>
+    <% positionOptions.forEach(p => { %>
+      <option value="<%= p %>"><%= p %></option>
+    <% }) %>
+  </select>
+  <div class="filter-sep"></div>
+  <span class="filter-label">Open:</span>
+  <input type="date" id="filterDateFrom" onchange="filterTable()" style="width:110px;">
+  <span class="filter-label">→</span>
+  <input type="date" id="filterDateTo" onchange="filterTable()" style="width:110px;">
+</div>
+<div id="enrichStatus" style="display:none;" class="text-[10px] text-purple-300 mb-2"></div>
 
 <div class="card p-0 overflow-hidden">
   <div class="overflow-x-auto max-h-[calc(100vh-200px)]">
@@ -134,7 +134,7 @@
       <tbody>
         <% vessels.forEach((v, i) => { %>
         <tr data-controller="<%= v.controller || '' %>" data-state="<%= v.state || '' %>" data-name="<%= v.name %>"
-            data-pmax="<%= v.panamax ? '1' : '0' %>" data-us="<%= v.us_trade ? '1' : '0' %>"
+            data-position="<%= v.position || '' %>"
             data-avail="<%= v.avail_status || v.vessel_availability || '' %>"
             data-kpler="<%= v.kpler_id %>"
             data-sort-name="<%= v.name %>"
@@ -334,6 +334,7 @@ function filterTable() {
   const ctrl = document.getElementById('filterController').value.toLowerCase();
   const state = document.getElementById('filterState').value.toLowerCase();
   const avail = document.getElementById('filterAvail').value.toLowerCase();
+  const pos = document.getElementById('filterPosition').value;
   const search = document.getElementById('searchInput').value.toLowerCase();
   const dateFrom = document.getElementById('filterDateFrom').value;
   const dateTo = document.getElementById('filterDateTo').value;
@@ -344,6 +345,7 @@ function filterTable() {
     const rc = (row.dataset.controller || '').toLowerCase();
     const rs = (row.dataset.state || '').toLowerCase();
     const ra = (row.dataset.avail || '').toLowerCase();
+    const rp = row.dataset.position || '';
     const rn = (row.dataset.name || '').toLowerCase();
     const rf = parseFloat(row.getAttribute('data-sort-from')) || 0;
     
@@ -352,6 +354,7 @@ function filterTable() {
     const show = (!ctrl || rc.includes(ctrl)) &&
                  (!state || rs === state) &&
                  (!avail || ra.includes(avail)) &&
+                 (!pos || rp === pos) &&
                  (!search || rn.includes(search)) &&
                  dateMatch;
     row.style.display = show ? '' : 'none';

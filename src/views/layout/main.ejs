@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,13 +8,31 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
+
+    /* Theme variables */
+    [data-theme="dark"] {
+      --bg-body: #0f172a; --bg-sidebar: #020617; --bg-card: rgba(30,41,59,0.5);
+      --bg-input: #1e293b; --bg-table-head: #1e293b; --bg-table-hover: rgba(30,41,59,0.5);
+      --border-main: rgba(51,65,85,0.5); --border-sidebar: #1e293b;
+      --text-primary: #e2e8f0; --text-secondary: #94a3b8; --text-muted: #64748b;
+      --scroll-track: #1e293b; --scroll-thumb: #475569;
+    }
+    [data-theme="light"] {
+      --bg-body: #f1f5f9; --bg-sidebar: #ffffff; --bg-card: rgba(255,255,255,0.9);
+      --bg-input: #f8fafc; --bg-table-head: #f1f5f9; --bg-table-hover: rgba(241,245,249,0.7);
+      --border-main: #e2e8f0; --border-sidebar: #e2e8f0;
+      --text-primary: #1e293b; --text-secondary: #475569; --text-muted: #94a3b8;
+      --scroll-track: #f1f5f9; --scroll-thumb: #cbd5e1;
+    }
+
+    body { background: var(--bg-body); color: var(--text-primary); }
     .sidebar-link { display:flex; align-items:center; gap:0.75rem; padding:0.625rem 1rem; font-size:0.875rem; border-radius:0.5rem; transition:all 0.2s; text-decoration:none; color:inherit; }
-    .sidebar-link:hover { background:rgba(255,255,255,0.1); }
-    .sidebar-link.active { background:rgba(255,255,255,0.15); color:#fff; font-weight:500; }
+    .sidebar-link:hover { background:rgba(128,128,128,0.15); }
+    .sidebar-link.active { background:rgba(59,130,246,0.15); color:var(--text-primary); font-weight:500; }
     .data-table { width:100%; font-size:0.75rem; border-collapse:collapse; }
-    .data-table th { padding:0.5rem; text-align:left; font-weight:600; background:#1e293b; color:#e2e8f0; position:sticky; top:0; z-index:10; white-space:nowrap; }
-    .data-table td { padding:0.375rem 0.5rem; border-bottom:1px solid rgba(51,65,85,0.5); white-space:nowrap; }
-    .data-table tr:hover td { background:rgba(30,41,59,0.5); }
+    .data-table th { padding:0.5rem; text-align:left; font-weight:600; background:var(--bg-table-head); color:var(--text-primary); position:sticky; top:0; z-index:10; white-space:nowrap; }
+    .data-table td { padding:0.375rem 0.5rem; border-bottom:1px solid var(--border-main); white-space:nowrap; }
+    .data-table tr:hover td { background:var(--bg-table-hover); }
     .btn { display:inline-block; padding:0.5rem 1rem; border-radius:0.5rem; font-size:0.875rem; font-weight:500; transition:all 0.2s; cursor:pointer; text-decoration:none; border:none; }
     .btn-primary { background:#2563eb; color:#fff; }
     .btn-primary:hover { background:#1d4ed8; }
@@ -23,16 +41,38 @@
     .btn-success { background:#059669; color:#fff; }
     .btn-success:hover { background:#047857; }
     .btn-sm { padding:0.375rem 0.75rem; font-size:0.75rem; }
-    .input { background:#1e293b; border:1px solid #475569; border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:0.875rem; color:#fff; outline:none; width:100%; box-sizing:border-box; }
+    .input { background:var(--bg-input); border:1px solid var(--border-main); border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:0.875rem; color:var(--text-primary); outline:none; width:100%; box-sizing:border-box; }
     .input:focus { border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; }
     .input-sm { padding:0.25rem 0.5rem; font-size:0.75rem; }
-    .card { background:rgba(30,41,59,0.5); border:1px solid rgba(51,65,85,0.5); border-radius:0.75rem; padding:1.25rem; backdrop-filter:blur(8px); }
-    .inline-edit { background:transparent; border:none; color:#fff; font-size:0.75rem; width:100%; padding:0.125rem 0.25rem; border-radius:0.25rem; outline:none; }
-    .inline-edit:focus { background:#334155; border:1px solid #3b82f6; }
+    .card { background:var(--bg-card); border:1px solid var(--border-main); border-radius:0.75rem; padding:1.25rem; backdrop-filter:blur(8px); }
+    .inline-edit { background:transparent; border:none; color:var(--text-primary); font-size:0.75rem; width:100%; padding:0.125rem 0.25rem; border-radius:0.25rem; outline:none; }
+    .inline-edit:focus { background:var(--bg-input); border:1px solid #3b82f6; }
     ::-webkit-scrollbar { width:6px; height:6px; }
-    ::-webkit-scrollbar-track { background:#1e293b; }
-    ::-webkit-scrollbar-thumb { background:#475569; border-radius:3px; }
+    ::-webkit-scrollbar-track { background:var(--scroll-track); }
+    ::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:3px; }
     ::-webkit-scrollbar-thumb:hover { background:#64748b; }
+
+    /* Light theme overrides */
+    [data-theme="light"] .data-table .sticky { background:var(--bg-table-head) !important; }
+    [data-theme="light"] .bg-slate-900 { background:var(--bg-card) !important; }
+    [data-theme="light"] .bg-slate-950 { background:var(--bg-sidebar) !important; }
+    [data-theme="light"] .text-white { color:#1e293b !important; }
+    [data-theme="light"] .text-slate-200 { color:#334155 !important; }
+    [data-theme="light"] .text-slate-400 { color:#64748b !important; }
+    [data-theme="light"] .text-slate-500 { color:#94a3b8 !important; }
+    [data-theme="light"] .border-slate-800 { border-color:#e2e8f0 !important; }
+    [data-theme="light"] .border-slate-700 { border-color:#e2e8f0 !important; }
+    [data-theme="light"] select option { background:#fff !important; color:#1e293b !important; }
+
+    /* Compact filter bar */
+    .filter-bar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .filter-bar select, .filter-bar input[type="text"], .filter-bar input[type="date"] {
+      font-size:11px; padding:3px 6px; border-radius:4px; height:26px;
+      background:var(--bg-input); border:1px solid var(--border-main); color:var(--text-primary); outline:none;
+    }
+    .filter-bar select:focus, .filter-bar input:focus { border-color:#3b82f6; }
+    .filter-bar .filter-label { font-size:9px; color:var(--text-muted); white-space:nowrap; }
+    .filter-bar .filter-sep { width:1px; height:16px; background:var(--border-main); margin:0 2px; }
 
     /* Mobile sidebar */
     #sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:40; }
@@ -41,7 +81,6 @@
       #sidebar { position:fixed; left:-100%; top:0; bottom:0; z-index:50; transition:left 0.3s ease; width:16rem; }
       #sidebar.open { left:0; }
       .mobile-header { display:flex !important; }
-      /* Responsive table */
       .data-table { font-size:0.65rem; }
       .data-table th, .data-table td { padding:0.25rem 0.375rem; }
       .card { padding:0.75rem; }
@@ -51,13 +90,13 @@
     }
   </style>
 </head>
-<body class="h-full bg-slate-900 text-slate-200">
+<body class="h-full">
   <!-- Mobile Header -->
-  <div class="mobile-header items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-800" style="display:none;">
-    <button onclick="document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-overlay').classList.add('active');" class="text-slate-400 hover:text-white">
+  <div class="mobile-header items-center justify-between px-4 py-3 border-b" style="display:none;background:var(--bg-sidebar);border-color:var(--border-sidebar);">
+    <button onclick="document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-overlay').classList.add('active');" style="color:var(--text-muted);">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
-    <h1 class="text-sm font-bold text-white flex items-center gap-2">
+    <h1 class="text-sm font-bold flex items-center gap-2" style="color:var(--text-primary);">
       <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
       <%= appName %>
     </h1>
@@ -69,30 +108,29 @@
 
   <div class="flex h-full">
     <!-- Sidebar -->
-    <aside id="sidebar" class="w-56 bg-slate-950 border-r border-slate-800 flex flex-col flex-shrink-0">
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-        <h1 class="text-lg font-bold text-white flex items-center gap-2">
+    <aside id="sidebar" class="w-56 flex flex-col flex-shrink-0" style="background:var(--bg-sidebar);border-right:1px solid var(--border-sidebar);">
+      <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-sidebar);">
+        <h1 class="text-lg font-bold flex items-center gap-2" style="color:var(--text-primary);">
           <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           <%= appName %>
         </h1>
-        <!-- Close button (mobile) -->
-        <button class="md:hidden text-slate-400 hover:text-white" onclick="document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('active');">
+        <button class="md:hidden" style="color:var(--text-muted);" onclick="document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('active');">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
-      <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto text-slate-400">
+      <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto" style="color:var(--text-secondary);">
         <a href="/dashboard" class="sidebar-link <%= currentPath.startsWith('/dashboard') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
           Dashboard
         </a>
 
-        <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Core</div>
+        <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider" style="color:var(--text-muted);">Core</div>
         <a href="/availability" class="sidebar-link <%= currentPath.startsWith('/availability') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           Availability
         </a>
 
-        <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Data</div>
+        <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider" style="color:var(--text-muted);">Data</div>
         <a href="/kpler-vessels" class="sidebar-link <%= currentPath.startsWith('/kpler-vessels') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
           Kpler Fleet
@@ -103,7 +141,7 @@
         </a>
 
         <% if (user && user.role === 'superadmin') { %>
-        <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Admin</div>
+        <div class="pt-3 pb-1 px-4 text-[10px] font-bold uppercase tracking-wider" style="color:var(--text-muted);">Admin</div>
         <a href="/settings" class="sidebar-link <%= currentPath.startsWith('/settings') ? 'active' : '' %>" onclick="closeSidebar()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           Settings
@@ -111,19 +149,23 @@
         <% } %>
       </nav>
 
-      <!-- User -->
-      <div class="p-3 border-t border-slate-800">
+      <!-- Theme Toggle + User -->
+      <div class="p-3" style="border-top:1px solid var(--border-sidebar);">
+        <button onclick="toggleTheme()" class="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs mb-2 transition-colors" style="color:var(--text-secondary);background:var(--bg-input);">
+          <span id="themeIcon">🌙</span>
+          <span id="themeLabel">Dark Mode</span>
+        </button>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
               <%= user ? (user.initials || user.username.substring(0,2).toUpperCase()) : '?' %>
             </div>
             <div class="text-xs">
-              <div class="font-medium text-white"><%= user ? user.display_name || user.username : 'Guest' %></div>
-              <div class="text-slate-500"><%= user ? user.role : '' %></div>
+              <div class="font-medium" style="color:var(--text-primary);"><%= user ? user.display_name || user.username : 'Guest' %></div>
+              <div style="color:var(--text-muted);"><%= user ? user.role : '' %></div>
             </div>
           </div>
-          <a href="/auth/logout" class="text-slate-500 hover:text-red-400 transition-colors" title="Logout">
+          <a href="/auth/logout" style="color:var(--text-muted);" class="hover:text-red-400 transition-colors" title="Logout">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </a>
         </div>
@@ -151,6 +193,27 @@
         document.getElementById('sidebar-overlay').classList.remove('active');
       }
     }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      updateThemeUI(next);
+    }
+
+    function updateThemeUI(theme) {
+      document.getElementById('themeIcon').textContent = theme === 'dark' ? '🌙' : '☀️';
+      document.getElementById('themeLabel').textContent = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
+    }
+
+    // Restore theme
+    (function() {
+      const saved = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      updateThemeUI(saved);
+    })();
   </script>
 </body>
 </html>
