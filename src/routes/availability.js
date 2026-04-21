@@ -4,9 +4,12 @@ const db = require('../config/database');
 
 router.get('/', isAuthenticated, async (req, res) => {
   try {
-    // Get excluded controllers
-    const [excludedRows] = await db.query('SELECT controller_name FROM excluded_controllers');
-    const excludedSet = new Set(excludedRows.map(r => r.controller_name.toLowerCase().trim()));
+    // Get excluded controllers (graceful if table not yet migrated)
+    let excludedSet = new Set();
+    try {
+      const [excludedRows] = await db.query('SELECT controller_name FROM excluded_controllers');
+      excludedSet = new Set(excludedRows.map(r => r.controller_name.toLowerCase().trim()));
+    } catch(e) { /* table may not exist yet */ }
 
     // Pull ALL active vessels from kpler_fleet (primary synced data)
     const [entries] = await db.query(`
