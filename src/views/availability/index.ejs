@@ -78,16 +78,6 @@
       <option value="relet">Relet</option>
       <option value="tc">TC</option>
     </select>
-    <select id="filterPmax" onchange="filterTable()" class="input input-sm">
-      <option value="">All Sizes</option>
-      <option value="1">Panamax</option>
-      <option value="0">Non-Panamax</option>
-    </select>
-    <select id="filterUS" onchange="filterTable()" class="input input-sm">
-      <option value="">US: All</option>
-      <option value="1">US OK</option>
-      <option value="0">US Restricted</option>
-    </select>
     <input type="text" id="searchInput" placeholder="Search..." class="input input-sm w-32" oninput="filterTable()">
     <div class="flex items-center gap-1">
       <span class="text-[9px] text-slate-500">Open:</span>
@@ -165,9 +155,7 @@
           <td class="sticky left-8 bg-slate-900">
             <a href="/kpler-vessels/<%= v.kpler_id %>" class="text-white font-medium hover:text-cyan-300 transition-colors text-[11px]"><%= v.name %></a>
             <div class="flex gap-0.5 mt-0.5">
-              <% if (v.us_trade) { %><span class="badge-tag bg-us" title="US Trade OK">US</span><% } %>
-              <% if (v.chinese_built) { %><span class="badge-tag bg-cn" title="Chinese Built">CN</span><% } %>
-              <% if (v.panamax) { %><span class="badge-tag bg-pm" title="Panamax">PM</span><% } %>
+              <% if (v.beam && parseFloat(v.beam) <= 32.31) { %><span class="badge-tag bg-pm" title="Panamax (beam: <%= v.beam %>m)">PMAX</span><% } %>
               <% if (v.is_ethylene_capable) { %><span class="badge-tag" style="background:rgba(16,185,129,0.12);color:#6ee7b7" title="Ethylene">ETH</span><% } %>
               <% if (v.is_floating_storage) { %><span class="badge-tag bg-fs" title="Floating Storage">FS</span><% } %>
             </div>
@@ -346,8 +334,6 @@ function filterTable() {
   const ctrl = document.getElementById('filterController').value.toLowerCase();
   const state = document.getElementById('filterState').value.toLowerCase();
   const avail = document.getElementById('filterAvail').value.toLowerCase();
-  const pmax = document.getElementById('filterPmax').value;
-  const us = document.getElementById('filterUS').value;
   const search = document.getElementById('searchInput').value.toLowerCase();
   const dateFrom = document.getElementById('filterDateFrom').value;
   const dateTo = document.getElementById('filterDateTo').value;
@@ -359,17 +345,13 @@ function filterTable() {
     const rs = (row.dataset.state || '').toLowerCase();
     const ra = (row.dataset.avail || '').toLowerCase();
     const rn = (row.dataset.name || '').toLowerCase();
-    const rp = row.dataset.pmax || '';
-    const ru = row.dataset.us || '';
     const rf = parseFloat(row.getAttribute('data-sort-from')) || 0;
     
     const dateMatch = (!dateFrom && !dateTo) || (rf > 0 && rf >= dfTs && rf <= dtTs);
     
     const show = (!ctrl || rc.includes(ctrl)) &&
                  (!state || rs === state) &&
-                 (!avail || ra.toLowerCase().includes(avail)) &&
-                 (!pmax || rp === pmax) &&
-                 (!us || ru === us) &&
+                 (!avail || ra.includes(avail)) &&
                  (!search || rn.includes(search)) &&
                  dateMatch;
     row.style.display = show ? '' : 'none';

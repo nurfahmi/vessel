@@ -29,6 +29,7 @@ router.get('/', isAuthenticated, async (req, res) => {
              f.position as fleet_position, f.auto_position,
              f.avail_notes, f.avail_status, f.avail_voyage,
              f.manual_open_from, f.manual_open_to,
+             d.beam,
              v.us_trade, v.chinese_built, v.panamax, v.scrubber_df, v.deck_tank,
              v.kpler_vessel_id
       FROM kpler_fleet f
