@@ -33,6 +33,16 @@
   .pos-select option { background: #1e293b; }
   .pos-select.manual { color: #fbbf24; }
   .pos-select.auto { color: #94a3b8; }
+  .avail-select {
+    background: transparent; border: 0; color: #e2e8f0; font-size: 10px; font-weight: 500;
+    outline: none; cursor: pointer; padding: 2px 0; width: 100%;
+  }
+  .avail-select option { background: #1e293b; }
+  .inline-input {
+    background: transparent; border: none; color: #94a3b8; font-size: 10px; width: 100%;
+    padding: 2px 4px; border-radius: 3px; outline: none;
+  }
+  .inline-input:focus { background: #334155; color: #e2e8f0; }
   @media (max-width: 768px) {
     .data-table .sticky { position:static !important; left:auto !important; }
   }
@@ -64,7 +74,9 @@
     </select>
     <select id="filterAvail" onchange="filterTable()" class="input input-sm">
       <option value="">All Status</option>
-      <option value="open">Potentially Open</option>
+      <option value="open">Open</option>
+      <option value="relet">Relet</option>
+      <option value="tc">TC</option>
     </select>
     <select id="filterPmax" onchange="filterTable()" class="input input-sm">
       <option value="">All Sizes</option>
@@ -103,7 +115,11 @@
       <thead>
         <tr>
           <th class="sticky left-0 z-20 bg-slate-900 w-8">#</th>
-          <th class="sticky left-8 z-20 bg-slate-900 min-w-[200px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
+          <th class="sticky left-8 z-20 bg-slate-900 min-w-[140px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
+          <th class="sort-btn" data-col="ctrl" onclick="sortTable('ctrl')">Operator</th>
+          <th class="sort-btn text-center" data-col="cbm" onclick="sortTable('cbm')">CBM</th>
+          <th class="sort-btn text-center" data-col="blt" onclick="sortTable('blt')">BLT</th>
+          <th class="sort-btn" data-col="state" onclick="sortTable('state')">State</th>
           <th class="sort-btn" data-col="pos" onclick="sortTable('pos')">Position</th>
           <th>Last Port</th>
           <th>Next Dest</th>
@@ -111,25 +127,27 @@
           <th class="sort-btn" data-col="seen" onclick="sortTable('seen')">Last Seen</th>
           <th class="border-l border-emerald-800 text-emerald-300 sort-btn" data-col="from" onclick="sortTable('from')">Open From</th>
           <th class="text-emerald-300 sort-btn" data-col="to" onclick="sortTable('to')">Open To</th>
-          <th class="text-orange-300 text-center text-[9px]">Disch<br>Days</th>
+          <th class="border-l border-slate-700">Notes</th>
+          <th>Voyage</th>
+          <th class="text-orange-300 text-center text-[9px] border-l border-slate-700">Disch<br>Days</th>
           <% destinations.forEach(d => { %>
             <th class="border-l border-slate-700 text-center text-cyan-300 min-w-[75px] sort-btn" data-col="eta_<%= d.key %>" onclick="sortTable('eta_<%= d.key %>')">ETA<br><%= d.short_label %></th>
           <% }) %>
-          <th class="border-l border-slate-700">Notes</th>
         </tr>
       </thead>
       <tbody>
         <% vessels.forEach((v, i) => { %>
         <tr data-controller="<%= v.controller || '' %>" data-state="<%= v.state || '' %>" data-name="<%= v.name %>"
             data-pmax="<%= v.panamax ? '1' : '0' %>" data-us="<%= v.us_trade ? '1' : '0' %>"
-            data-avail="<%= v.vessel_availability || '' %>"
+            data-avail="<%= v.avail_status || v.vessel_availability || '' %>"
+            data-kpler="<%= v.kpler_id %>"
             data-sort-name="<%= v.name %>"
             data-sort-cbm="<%= v.cbm || 0 %>"
             data-sort-blt="<%= v.built_year || 0 %>"
             data-sort-ctrl="<%= v.controller || '' %>"
             data-sort-state="<%= v.state || '' %>"
             data-sort-pos="<%= v.position || '' %>"
-            data-sort-avail="<%= v.vessel_availability || '' %>"
+            data-sort-avail="<%= v.avail_status || v.vessel_availability || '' %>"
             data-sort-seen="<%= v.position_time ? new Date(v.position_time).getTime() : 0 %>"
             data-sort-from="<%= v.open_from ? new Date(v.open_from).getTime() : 0 %>"
             data-sort-to="<%= v.open_to ? new Date(v.open_to).getTime() : 0 %>"
@@ -140,18 +158,6 @@
           <td class="sticky left-0 bg-slate-900 text-slate-500 text-[10px]"><%= i + 1 %></td>
           <td class="sticky left-8 bg-slate-900">
             <a href="/kpler-vessels/<%= v.kpler_id %>" class="text-white font-medium hover:text-cyan-300 transition-colors text-[11px]"><%= v.name %></a>
-            <div class="flex flex-wrap gap-0.5 mt-0.5" style="font-size:9px;color:#64748b;line-height:1.3">
-              <% if (v.cbm) { %><span class="text-slate-400"><%= v.cbm.toLocaleString() %> cbm</span><% } %>
-              <% if (v.built_year) { %><span>BLT <%= v.built_year %></span><% } %>
-              <% if (v.controller) { %><span class="text-blue-300"><%= v.controller %></span><% } %>
-              <% if (v.state) { %>
-                <span class="px-1 rounded text-[8px] font-medium
-                  <%= v.state === 'loaded' ? 'bg-emerald-900/50 text-emerald-300' : 
-                     v.state === 'ballast' ? 'bg-blue-900/50 text-blue-300' : 
-                     'bg-slate-700 text-slate-300' %>"><%= v.state.toUpperCase() %></span>
-              <% } %>
-              <% if (v.cargo_products) { %><span class="text-amber-300 truncate max-w-[80px]" title="<%= v.cargo_products %>"><%= v.cargo_products %></span><% } %>
-            </div>
             <div class="flex gap-0.5 mt-0.5">
               <% if (v.us_trade) { %><span class="badge-tag bg-us" title="US Trade OK">US</span><% } %>
               <% if (v.chinese_built) { %><span class="badge-tag bg-cn" title="Chinese Built">CN</span><% } %>
@@ -159,6 +165,18 @@
               <% if (v.is_ethylene_capable) { %><span class="badge-tag" style="background:rgba(16,185,129,0.12);color:#6ee7b7" title="Ethylene">ETH</span><% } %>
               <% if (v.is_floating_storage) { %><span class="badge-tag bg-fs" title="Floating Storage">FS</span><% } %>
             </div>
+          </td>
+          <td class="text-blue-300 text-[10px] whitespace-nowrap"><%= v.controller || '' %></td>
+          <td class="text-slate-300 text-[10px] text-center whitespace-nowrap"><%= v.cbm ? v.cbm.toLocaleString() : '' %></td>
+          <td class="text-slate-400 text-[10px] text-center"><%= v.built_year || '' %></td>
+          <td>
+            <% if (v.state) { %>
+              <span class="px-1 rounded text-[8px] font-medium
+                <%= v.state === 'loaded' ? 'bg-emerald-900/50 text-emerald-300' : 
+                   v.state === 'ballast' ? 'bg-blue-900/50 text-blue-300' : 
+                   'bg-slate-700 text-slate-300' %>"><%= v.state.toUpperCase() %></span>
+            <% } %>
+            <% if (v.cargo_products) { %><div class="text-[8px] text-amber-300 truncate max-w-[60px]" title="<%= v.cargo_products %>"><%= v.cargo_products %></div><% } %>
           </td>
           <td>
             <select class="pos-select <%= v._isManualPos ? 'manual' : 'auto' %>" onchange="savePosition(<%= v.kpler_id %>, this)">
@@ -191,11 +209,13 @@
             <% } %>
           </td>
           <td>
-            <% if (v.vessel_availability === 'Potentially Open') { %>
-              <span class="badge-tag bg-open">Open</span>
-            <% } else if (v.vessel_availability) { %>
-              <span class="text-[9px] text-slate-400"><%= v.vessel_availability %></span>
-            <% } %>
+            <select class="avail-select" onchange="saveAvailField(<%= v.kpler_id %>, 'avail_status', this.value)" 
+                    style="color:<%= (v.avail_status||'') === 'Open' ? '#6ee7b7' : (v.avail_status||'') === 'Relet' ? '#fcd34d' : (v.avail_status||'') === 'TC' ? '#a5b4fc' : '#64748b' %>">
+              <option value="" <%= !v.avail_status ? 'selected' : '' %>>—</option>
+              <option value="Open" <%= v.avail_status === 'Open' ? 'selected' : '' %>>Open</option>
+              <option value="Relet" <%= v.avail_status === 'Relet' ? 'selected' : '' %>>Relet</option>
+              <option value="TC" <%= v.avail_status === 'TC' ? 'selected' : '' %>>TC</option>
+            </select>
           </td>
           <td class="text-[10px] whitespace-nowrap">
             <% if (v.position_time) {
@@ -211,12 +231,9 @@
           </td>
           <td class="border-l border-emerald-800/30 text-emerald-300 font-medium whitespace-nowrap">
             <% if (v.open_from) {
-              const openDate = new Date(v.open_from);
-              if (openDate <= new Date()) { %>
-                <span class="badge-tag bg-open font-bold">NOW</span>
-            <% } else { %>
-                <%= openDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %>
-            <% }} %>
+              const openDate = new Date(v.open_from); %>
+              <%= openDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %>
+            <% } %>
           </td>
           <td class="text-emerald-300/70 whitespace-nowrap">
             <% if (v.open_to) {
@@ -227,7 +244,17 @@
                 <%= toDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) %>
             <% }} %>
           </td>
-          <td class="text-center">
+          <td class="border-l border-slate-800">
+            <input class="inline-input" value="<%= v._notes || '' %>" placeholder="—"
+                   onchange="saveAvailField(<%= v.kpler_id %>, 'avail_notes', this.value)"
+                   style="min-width:100px;">
+          </td>
+          <td>
+            <input class="inline-input text-cyan-300" value="<%= v.avail_voyage || '' %>" placeholder="—"
+                   onchange="saveAvailField(<%= v.kpler_id %>, 'avail_voyage', this.value)"
+                   style="min-width:80px;">
+          </td>
+          <td class="text-center border-l border-slate-700">
             <% if (v._dischargeDays) { %>
               <input type="number" class="bg-transparent text-orange-300 text-[10px] font-mono text-center w-10 border-0 outline-none"
                      value="<%= v._dischargeDays %>" min="1" max="30"
@@ -254,9 +281,6 @@
               <% } %>
             </td>
           <% }) %>
-          <td class="border-l border-slate-800 text-slate-400 text-[10px] max-w-[220px] truncate" title="<%= v._notes || '' %>">
-            <%= v._notes || '—' %>
-          </td>
         </tr>
         <% }) %>
       </tbody>
@@ -316,7 +340,7 @@ function filterTable() {
     
     const show = (!ctrl || rc.includes(ctrl)) &&
                  (!state || rs === state) &&
-                 (!avail || ra.includes(avail)) &&
+                 (!avail || ra.toLowerCase().includes(avail)) &&
                  (!pmax || rp === pmax) &&
                  (!us || ru === us) &&
                  (!search || rn.includes(search));
@@ -353,8 +377,28 @@ function savePosition(kplerId, select) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ position: select.value })
   }).then(r => r.json()).then(d => {
-    select.className = 'pos-select ' + (select.value ? 'manual' : 'auto');
-    select.closest('tr').setAttribute('data-sort-pos', select.value);
+    // Reload to recalculate ETAs from new position
+    location.reload();
+  });
+}
+
+function saveAvailField(kplerId, field, value) {
+  fetch('/availability/api/save-avail-field', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kpler_id: kplerId, field, value })
+  }).then(r => r.json()).then(d => {
+    // Update status dropdown color if status changed
+    if (field === 'avail_status') {
+      const row = document.querySelector(`tr[data-kpler="${kplerId}"]`);
+      if (row) {
+        row.dataset.avail = value;
+        const sel = row.querySelector('.avail-select');
+        if (sel) {
+          sel.style.color = value === 'Open' ? '#6ee7b7' : value === 'Relet' ? '#fcd34d' : value === 'TC' ? '#a5b4fc' : '#64748b';
+        }
+      }
+    }
   });
 }
 

@@ -191,12 +191,22 @@ model kpler_fleet {
   position                  String?               @db.VarChar(100)
   last_port_zone            String?               @db.VarChar(255)
   auto_position             String?               @db.VarChar(100)
+  avail_notes               String?               @db.Text
+  avail_status              String?               @db.VarChar(50)
+  avail_voyage              String?               @db.VarChar(255)
   kpler_vessel_details      kpler_vessel_details?
 
   @@index([imo], map: "idx_imo")
   @@index([name], map: "idx_name")
   @@index([state], map: "idx_state")
   @@index([tracked], map: "idx_tracked")
+}
+
+model excluded_controllers {
+  id              Int       @id @default(autoincrement())
+  controller_name String    @unique @db.VarChar(255)
+  reason          String?   @default("Sanctioned") @db.VarChar(255)
+  created_at      DateTime? @default(now()) @db.DateTime(0)
 }
 
 model kpler_vessel_details {

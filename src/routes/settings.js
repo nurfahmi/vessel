@@ -6,6 +6,8 @@ const Setting = require('../models/Setting');
 router.get('/', isAuthenticated, isSuperadmin, c.index);
 router.post('/', isAuthenticated, isSuperadmin, c.updateSettings);
 router.post('/users', isAuthenticated, isSuperadmin, c.createUser);
+router.post('/excluded-controllers', isAuthenticated, isSuperadmin, c.addExcludedController);
+router.post('/excluded-controllers/:id/delete', isAuthenticated, isSuperadmin, c.removeExcludedController);
 
 // OpenAI API key
 router.post('/api/openai-key', isAuthenticated, isSuperadmin, async (req, res) => {

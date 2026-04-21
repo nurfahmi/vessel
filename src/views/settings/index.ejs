@@ -116,6 +116,43 @@
   </div>
 </div>
 
+<!-- Excluded Controllers (Sanctions) -->
+<div class="card mt-6">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h3 class="text-sm font-semibold text-white">Excluded Controllers</h3>
+      <p class="text-[10px] text-slate-500 mt-0.5">These operators are filtered out from the Availability page (e.g. sanctioned entities)</p>
+    </div>
+    <span class="text-[10px] px-2 py-0.5 rounded bg-red-900/50 text-red-300"><%= excludedControllers.length %> excluded</span>
+  </div>
+
+  <div class="space-y-1 mb-4">
+    <% excludedControllers.forEach(ec => { %>
+      <div class="flex items-center justify-between bg-slate-900 rounded-lg px-3 py-2">
+        <div>
+          <span class="text-sm text-white font-medium"><%= ec.controller_name %></span>
+          <span class="text-[10px] text-slate-500 ml-2"><%= ec.reason || '' %></span>
+        </div>
+        <form action="/settings/excluded-controllers/<%= ec.id %>/delete" method="POST" style="display:inline;">
+          <button type="submit" class="text-red-400 hover:text-red-300 text-xs" onclick="return confirm('Remove?')">✕</button>
+        </form>
+      </div>
+    <% }) %>
+  </div>
+
+  <form action="/settings/excluded-controllers" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+    <div class="flex-1">
+      <label class="block text-[10px] text-slate-500 mb-0.5">Controller Name</label>
+      <input type="text" name="controller_name" required placeholder="e.g. NITC" class="input input-sm w-full">
+    </div>
+    <div>
+      <label class="block text-[10px] text-slate-500 mb-0.5">Reason</label>
+      <input type="text" name="reason" placeholder="e.g. Iran Sanctioned" value="Sanctioned" class="input input-sm w-full">
+    </div>
+    <button type="submit" class="btn btn-sm btn-danger">+ Exclude</button>
+  </form>
+</div>
+
 <!-- OpenAI API Configuration -->
 <div class="card mt-6">
   <div class="flex items-center justify-between mb-4">

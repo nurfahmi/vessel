@@ -4,6 +4,10 @@ const db = require('../config/database');
 
 router.get('/', isAuthenticated, async (req, res) => {
   try {
+    // Get excluded controllers
+    const [excludedRows] = await db.query('SELECT controller_name FROM excluded_controllers');
+    const excludedSet = new Set(excludedRows.map(r => r.controller_name.toLowerCase().trim()));
+
     // Pull ALL active vessels from kpler_fleet (primary synced data)
     const [entries] = await db.query(`
       SELECT f.kpler_id, f.name, f.capacity_cbm as cbm, f.build_year as built_year, 
@@ -20,6 +24,7 @@ router.get('/', isAuthenticated, async (req, res) => {
              f.loaded, f.lat, f.lon, f.speed, f.draught,
              d.last_port_departure as position_zones,
              f.position as fleet_position, f.auto_position,
+             f.avail_notes, f.avail_status, f.avail_voyage,
              v.us_trade, v.chinese_built, v.panamax, v.scrubber_df, v.deck_tank,
              v.kpler_vessel_id
       FROM kpler_fleet f
@@ -40,7 +45,13 @@ router.get('/', isAuthenticated, async (req, res) => {
     dischargeRows.forEach(r => { dischargeMap[r.area_name.toLowerCase().trim()] = r.discharge_days; });
 
     // Calculate open_from/to and ETAs for each vessel
-    const vessels = entries.map(e => {
+    const vessels = entries
+      .filter(e => {
+        // Filter out excluded/sanctioned controllers
+        const ctrl = (e.controller || '').toLowerCase().trim();
+        return !excludedSet.has(ctrl);
+      })
+      .map(e => {
       const eta = e.next_dest_eta || e.ais_eta;
 
       // Use manual position from fleet page, or auto-resolved from fleet page
@@ -95,7 +106,7 @@ router.get('/', isAuthenticated, async (req, res) => {
       } catch(ex) { availStatus = ''; }
 
       e.vessel_availability = availStatus;
-      e._notes = availNotes;
+      e._notes = e.avail_notes || availNotes || '';
 
       return { ...e, etas, position: pos, _isManualPos: !!e.fleet_position };
     });
@@ -122,6 +133,15 @@ router.get('/', isAuthenticated, async (req, res) => {
   }
 });
 
+// Save availability notes inline
+router.post('/api/save-avail-field', isAuthenticated, async (req, res) => {
+  const { kpler_id, field, value } = req.body;
+  const allowed = ['avail_notes', 'avail_status', 'avail_voyage'];
+  if (!allowed.includes(field)) return res.status(400).json({ error: 'Invalid field' });
+  await db.query(`UPDATE kpler_fleet SET ${field} = ? WHERE kpler_id = ?`, [value || null, kpler_id]);
+  res.json({ ok: true });
+});
+
 // Save discharge days inline
 router.post('/api/save-discharge', isAuthenticated, async (req, res) => {
   const { area, days } = req.body;
@@ -129,9 +149,8 @@ router.post('/api/save-discharge', isAuthenticated, async (req, res) => {
   res.json({ ok: true });
 });
 
-// Save notes inline (now saves to kpler_vessels)
+// Save notes inline (legacy - kept for compat)
 router.post('/api/save-notes', isAuthenticated, async (req, res) => {
-  // Notes are view-only for now from kpler data
   res.json({ ok: true });
 });
 
@@ -145,6 +164,7 @@ router.get('/export', isAuthenticated, async (req, res) => {
              f.state, f.flag_name as flag,
              f.is_ethylene_capable, f.controller, f.ais_destination, f.ais_eta,
              d.vessel_availability, f.next_dest_installation as next_dest_name,
+             f.avail_notes, f.avail_status, f.avail_voyage,
              v.us_trade, v.chinese_built, v.panamax, v.scrubber_df, v.deck_tank
       FROM kpler_fleet f
       LEFT JOIN kpler_vessel_details d ON f.kpler_id = d.kpler_id
@@ -163,32 +183,28 @@ router.get('/export', isAuthenticated, async (req, res) => {
       transitMap[`${r.from_position.toLowerCase().trim()}|${r.dest_key}`] = parseFloat(r.transit_days);
     });
 
-    const header = ['#', 'Vessel', 'CBM', 'BLT', 'US', 'CN', 'PMAX', 'Scrubber/DF', 'DeckTank',
-                    'Controller', 'State', 'Open From', 'Open To',
+    const header = ['#', 'Vessel', 'Operator', 'CBM', 'BLT', 'US', 'CN', 'PMAX', 'Scrubber/DF', 'DeckTank',
+                    'State', 'Status', 'Open From', 'Open To', 'Notes', 'Voyage',
                     ...destinations.map(d => `ETA ${d.short_label}`)];
 
     const rows = entries.map((e, i) => {
-      const etas = {};
-      destinations.forEach(d => {
-        // Simple export — no position-based ETA for now
-      });
-
       const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '';
 
       return [
-        i + 1, e.name, e.cbm || '', e.built_year || '',
+        i + 1, e.name, e.controller || '', e.cbm || '', e.built_year || '',
         e.us_trade ? 'Y' : '', e.chinese_built ? 'Y' : '', e.panamax ? 'Y' : '',
         e.scrubber_df || '', e.deck_tank ? 'Y' : '',
-        e.controller || '', e.state || '',
+        e.state || '', e.avail_status || '',
         fmtDate(e.open_from), fmtDate(e.open_to),
-        ...destinations.map(d => etas[d.key] || '')
+        e.avail_notes || '', e.avail_voyage || '',
+        ...destinations.map(() => '')
       ];
     });
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
     ws['!cols'] = [
-      {wch:4}, {wch:22}, {wch:8}, {wch:5}, {wch:3}, {wch:3}, {wch:5}, {wch:10}, {wch:5},
-      {wch:18}, {wch:8}, {wch:12}, {wch:12},
+      {wch:4}, {wch:22}, {wch:18}, {wch:8}, {wch:5}, {wch:3}, {wch:3}, {wch:5}, {wch:10}, {wch:5},
+      {wch:8}, {wch:10}, {wch:12}, {wch:12}, {wch:20}, {wch:15},
       ...destinations.map(() => ({wch:10}))
     ];
 
