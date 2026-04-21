@@ -245,9 +245,10 @@
             <% }} %>
           </td>
           <td class="border-l border-slate-800">
-            <input class="inline-input" value="<%= v._notes || '' %>" placeholder="—"
+            <textarea class="inline-input" placeholder="—" rows="1"
                    onchange="saveAvailField(<%= v.kpler_id %>, 'avail_notes', this.value)"
-                   style="min-width:100px;">
+                   oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+                   style="min-width:120px;resize:none;overflow:hidden;"><%= v._notes || '' %></textarea>
           </td>
           <td>
             <input class="inline-input text-cyan-300" value="<%= v.avail_voyage || '' %>" placeholder="—"
