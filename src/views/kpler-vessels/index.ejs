@@ -61,9 +61,8 @@
   </div>
   <div class="flex items-center gap-2">
     <a href="/kpler-vessels/panama" class="btn btn-sm" style="background:#1e3a5f;color:#93c5fd;padding:3px 10px;border-radius:4px;font-size:10px;text-decoration:none;">🚢 Panama</a>
-    <button onclick="syncFleet(this)" class="btn btn-sm" style="background:#0f766e;color:white;padding:3px 10px;border-radius:4px;font-size:10px;cursor:pointer;">🔄 Sync</button>
     <div class="flex items-center gap-1" style="background:var(--bg-input);border-radius:6px;padding:2px 4px;">
-      <button onclick="enrichAll(this)" class="btn btn-sm" style="background:#7c3aed;color:white;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;">⚡ Enrich</button>
+      <button onclick="refreshFleet(this)" class="btn btn-sm" style="background:#0f766e;color:white;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;">🔄 Refresh</button>
       <select id="enrichHours" style="background:transparent;color:#a78bfa;border:0;font-size:10px;outline:none;cursor:pointer;">
         <option value="1">1h</option><option value="4">4h</option><option value="8">8h</option>
         <option value="12" selected>12h</option><option value="24">24h</option><option value="0">Force</option>
@@ -114,7 +113,8 @@
       <thead>
         <tr>
           <th class="sticky left-0 z-20 bg-slate-900 w-8">#</th>
-          <th class="sticky left-8 z-20 bg-slate-900 min-w-[200px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
+          <th class="sticky left-8 z-20 bg-slate-900 w-8 text-center" title="Track for availability">Track</th>
+          <th class="sticky left-16 z-20 bg-slate-900 min-w-[200px] sort-btn" data-col="name" onclick="sortTable('name')">Vessel</th>
           <th class="sort-btn" data-col="pos" onclick="sortTable('pos')">Position</th>
           <th class="sort-btn" data-col="ctrl" onclick="sortTable('ctrl')">Controller</th>
           <th class="sort-btn" data-col="area" onclick="sortTable('area')">Area</th>
@@ -129,9 +129,9 @@
       <tbody>
         <% 
         const sorted = vessels.slice().sort((a,b) => {
-          const aUC = a.status === 'Under Construction' ? 1 : 0;
-          const bUC = b.status === 'Under Construction' ? 1 : 0;
-          return aUC - bUC;
+          const aUC = a.status === 'Under Construction' ? 2 : a.tracked ? 0 : 1;
+          const bUC = b.status === 'Under Construction' ? 2 : b.tracked ? 0 : 1;
+          return aUC - bUC || a.name.localeCompare(b.name);
         });
         sorted.forEach((v, i) => {
           const dateVal = v.next_dest_eta || v._enrichedDate;
@@ -139,7 +139,7 @@
         <tr class="<%= v.status === 'Under Construction' ? 'uc-row' : '' %> <%= (v.enriched_at && !v.lat && !v.speed) ? 'no-ais-row' : '' %>"
             data-sort-name="<%= v.name %>"
             data-sort-pos="<%= v._position || '' %>"
-            data-sort-ctrl="<%= v.controller || '' %>"
+            data-sort-ctrl="<%= v._displayCtrl || '' %>"
             data-sort-area="<%= v._area || '' %>"
             data-sort-loc="<%= v._aisLocation || '' %>"
             data-sort-eta="<%= dateVal ? new Date(dateVal).getTime() : 99999999999999 %>"
@@ -147,7 +147,11 @@
             data-uc="<%= v.status === 'Under Construction' ? '1' : '0' %>"
         >
           <td class="sticky left-0 bg-slate-900 text-slate-500 text-[10px] text-center"><%= i + 1 %></td>
-          <td class="sticky left-8 bg-slate-900">
+          <td class="sticky left-8 bg-slate-900 text-center">
+            <input type="checkbox" class="track-toggle" <%= v.tracked ? 'checked' : '' %> 
+                   onchange="toggleTrack(<%= v.id %>, this.checked)" title="Track this vessel">
+          </td>
+          <td class="sticky left-16 bg-slate-900">
             <a href="/kpler-vessels/<%= v.kpler_id %>" class="vessel-name text-white font-medium hover:text-cyan-300 transition-colors"><%= v.name %></a>
             <div class="vessel-sub">
               <% if (v.imo) { %><span title="IMO"><%= v.imo %></span><% } %>
@@ -170,7 +174,13 @@
               <% }) %>
             </select>
           </td>
-          <td class="text-blue-300 text-[10px]"><%= v.controller || '' %></td>
+          <td>
+            <input class="ctrl-input" value="<%= v._displayCtrl || '' %>" 
+                   style="background:transparent;border:none;color:<%= v._isManualCtrl ? '#fbbf24' : '#93c5fd' %>;font-size:10px;width:100%;min-width:80px;padding:2px 4px;border-radius:3px;outline:none;"
+                   title="<%= v._isManualCtrl ? 'From Excel' : 'From API' %> — edit to override"
+                   onchange="saveController(<%= v.id %>, this.value, this)"
+                   onfocus="this.style.background='#334155'" onblur="this.style.background='transparent'">
+          </td>
           <td class="text-amber-300 text-[10px]"><%= v._area || '' %></td>
           <td class="text-cyan-300 text-[10px]"><%= v._aisLocation || '' %></td>
           <td class="text-slate-400 text-[10px] whitespace-nowrap">
@@ -205,6 +215,12 @@
 <script>
 let currentSort = { col: null, dir: null };
 
+function toggleTrack(id, checked) {
+  fetch('/kpler-vessels/api/toggle-tracked/' + id, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 function savePosition(id, select) {
   fetch('/kpler-vessels/api/save-position/' + id, {
     method: 'POST',
@@ -213,6 +229,17 @@ function savePosition(id, select) {
   }).then(r => r.json()).then(d => {
     select.className = 'pos-select ' + (select.value ? 'manual' : 'auto');
     select.closest('tr').setAttribute('data-sort-pos', select.value);
+  });
+}
+
+function saveController(id, value, input) {
+  fetch('/kpler-vessels/api/save-controller/' + id, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ controller: value })
+  }).then(r => r.json()).then(() => {
+    input.style.color = value ? '#fbbf24' : '#93c5fd';
+    input.closest('tr').setAttribute('data-sort-ctrl', value);
   });
 }
 
@@ -250,19 +277,7 @@ function sortTable(col) {
   rows.forEach(r => tbody.appendChild(r));
 }
 
-async function syncFleet(btn) {
-  btn.disabled = true; btn.textContent = '⏳ Syncing...';
-  try {
-    const r = await fetch('/kpler-vessels/api/sync-fleet', { method: 'POST' });
-    const d = await r.json();
-    if (d.error) { alert('Error: ' + d.error); return; }
-    alert(`✓ Synced ${d.synced}/${d.total} vessels (${d.failed} failed)`);
-    location.reload();
-  } catch(e) { alert('Sync failed: ' + e.message); }
-  finally { btn.disabled = false; btn.textContent = '🔄 Sync Fleet'; }
-}
-
-async function enrichAll(btn) {
+async function refreshFleet(btn) {
   btn.disabled = true;
   const modal = document.getElementById('enrichModal');
   const bar = document.getElementById('enrichBar');
@@ -275,12 +290,29 @@ async function enrichAll(btn) {
   modal.classList.add('active');
   bar.style.width = '0%';
   pct.textContent = '0%';
-  status.textContent = 'Connecting...';
   log.innerHTML = '';
   closeBtn.style.display = 'none';
-  title.textContent = '⚡ Enriching Vessels';
 
-  const es = new EventSource('/kpler-vessels/api/enrich-all?hours=' + (document.getElementById('enrichHours')?.value || 12));
+  // Step 1: Sync fleet
+  title.textContent = '🔄 Syncing Fleet...';
+  status.textContent = 'Fetching latest vessel data from Kpler...';
+  try {
+    const r = await fetch('/kpler-vessels/api/sync-fleet', { method: 'POST' });
+    const d = await r.json();
+    if (d.error) {
+      log.innerHTML += `<div class="err">✗ Sync failed: ${d.error}</div>`;
+    } else {
+      log.innerHTML += `<div>✓ Synced ${d.synced}/${d.total} vessels</div>`;
+    }
+  } catch(e) {
+    log.innerHTML += `<div class="err">✗ Sync error: ${e.message}</div>`;
+  }
+
+  // Step 2: Enrich tracked vessels
+  title.textContent = '⚡ Enriching Tracked Vessels...';
+  status.textContent = 'Starting enrichment...';
+
+  const es = new EventSource('/kpler-vessels/api/enrich-all?hours=' + (document.getElementById('enrichHours')?.value || 12) + '&tracked=1');
   es.onmessage = (e) => {
     const d = JSON.parse(e.data);
     if (d.type === 'start') {

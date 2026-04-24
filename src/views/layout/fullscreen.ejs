@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle + ' — ' : '' %>Full View</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    [data-theme="dark"] {
+      --bg-body: #0f172a; --bg-card: rgba(30,41,59,0.5);
+      --bg-input: #1e293b; --bg-table-head: #1e293b; --bg-table-hover: rgba(30,41,59,0.5);
+      --border-main: rgba(51,65,85,0.5);
+      --text-primary: #e2e8f0; --text-secondary: #94a3b8; --text-muted: #64748b;
+      --scroll-track: #1e293b; --scroll-thumb: #475569;
+    }
+    body { background: var(--bg-body); color: var(--text-primary); margin: 0; padding: 8px; }
+    .data-table { width:100%; font-size:0.7rem; border-collapse:collapse; }
+    .data-table th { padding:0.375rem 0.5rem; text-align:left; font-weight:600; background:var(--bg-table-head); color:var(--text-primary); position:sticky; top:0; z-index:10; white-space:nowrap; }
+    .data-table td { padding:0.25rem 0.375rem; border-bottom:1px solid var(--border-main); white-space:nowrap; }
+    .data-table tr:hover td { background:var(--bg-table-hover); }
+    .btn { display:inline-block; padding:0.375rem 0.75rem; border-radius:0.5rem; font-size:0.75rem; font-weight:500; cursor:pointer; text-decoration:none; border:none; }
+    .card { background:var(--bg-card); border:1px solid var(--border-main); border-radius:0.5rem; padding:0; }
+    .filter-bar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .filter-bar select, .filter-bar input[type="text"], .filter-bar input[type="date"] {
+      font-size:11px; padding:3px 6px; border-radius:4px; height:26px;
+      background:var(--bg-input); border:1px solid var(--border-main); color:var(--text-primary); outline:none;
+    }
+    .filter-bar .filter-label { font-size:9px; color:var(--text-muted); white-space:nowrap; }
+    .filter-bar .filter-sep { width:1px; height:16px; background:var(--border-main); margin:0 2px; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:var(--scroll-track); }
+    ::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:3px; }
+  </style>
+</head>
+<body>
+  <%- body %>
+</body>
+</html>

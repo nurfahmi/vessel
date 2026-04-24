@@ -212,6 +212,9 @@ router.get('/', isAuthenticated, async (req, res) => {
       // Auto-resolve position if not manually set
       v._autoPosition = resolvePosition(v._area, v.state);
       v._position = v.position || v._autoPosition || '';
+      // Controller: manual_operator (Excel) takes priority over API controller
+      v._displayCtrl = v.manual_operator || v.controller || '';
+      v._isManualCtrl = !!v.manual_operator;
     });
 
     // Save auto_position back to kpler_fleet (so availability page can use it)
@@ -278,11 +281,12 @@ router.get('/api/enrich-all', isAuthenticated, async (req, res) => {
 
   try {
     const cooldownHours = parseFloat(req.query.hours) || 12;
+    const trackedOnly = req.query.tracked === '1';
     const [fleet] = await db.query(`
       SELECT f.kpler_id, f.name, d.fetched_at
       FROM kpler_fleet f
       LEFT JOIN kpler_vessel_details d ON f.kpler_id = d.kpler_id
-      WHERE f.status = 'Active' ORDER BY f.name
+      WHERE f.status = 'Active' ${trackedOnly ? 'AND f.tracked = 1' : ''} ORDER BY f.name
     `);
     const total = fleet.length;
     let enriched = 0, failed = 0, skipped = 0;
@@ -324,11 +328,27 @@ router.post('/api/toggle-tracked/:id', isAuthenticated, async (req, res) => {
   res.json({ tracked: newVal });
 });
 
+// POST toggle tracked by kpler_id (used by availability page)
+router.post('/api/toggle-tracked-kpler/:kplerId', isAuthenticated, async (req, res) => {
+  const [row] = await db.query('SELECT tracked FROM kpler_fleet WHERE kpler_id = ?', [req.params.kplerId]);
+  if (!row.length) return res.status(404).json({ error: 'Not found' });
+  const newVal = row[0].tracked ? 0 : 1;
+  await db.query('UPDATE kpler_fleet SET tracked = ? WHERE kpler_id = ?', [newVal, req.params.kplerId]);
+  res.json({ tracked: newVal });
+});
+
 // POST save position (manual override)
 router.post('/api/save-position/:id', isAuthenticated, async (req, res) => {
   const { position } = req.body;
   await db.query('UPDATE kpler_fleet SET position = ? WHERE id = ?', [position || null, req.params.id]);
   res.json({ ok: true, position });
+});
+
+// Save controller (manual_operator override)
+router.post('/api/save-controller/:id', isAuthenticated, async (req, res) => {
+  const { controller } = req.body;
+  await db.query('UPDATE kpler_fleet SET manual_operator = ? WHERE id = ?', [controller || null, req.params.id]);
+  res.json({ ok: true, controller });
 });
 
 // Save position by kpler_id (used by availability page)

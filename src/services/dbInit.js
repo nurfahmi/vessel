@@ -401,9 +401,67 @@ async function initAllTables() {
       'ALTER TABLE settings ADD COLUMN description VARCHAR(255)',
       'ALTER TABLE settings MODIFY COLUMN setting_value TEXT',
       'ALTER TABLE kpler_fleet ADD COLUMN auto_position VARCHAR(100)',
+      'ALTER TABLE kpler_fleet ADD COLUMN manual_operator VARCHAR(255)',
+      'ALTER TABLE kpler_fleet ADD COLUMN manual_open_from DATE',
+      'ALTER TABLE kpler_fleet ADD COLUMN manual_open_to DATE',
+      'ALTER TABLE kpler_fleet ADD COLUMN avail_notes TEXT',
+      'ALTER TABLE kpler_fleet ADD COLUMN avail_status VARCHAR(50)',
+      'ALTER TABLE kpler_fleet ADD COLUMN avail_voyage VARCHAR(255)',
     ];
     for (const p of patches) {
       try { await db.query(p); } catch (e) { /* column already exists */ }
+    }
+
+    // Destination aliases table (AIS codes → readable names, e.g. "KR YOS" → "South Korea")
+    await db.query(`CREATE TABLE IF NOT EXISTS destination_aliases (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      ais_code VARCHAR(100) NOT NULL,
+      display_name VARCHAR(255) NOT NULL,
+      UNIQUE KEY uq_ais_code (ais_code)
+    )`);
+
+    // Seed common AIS destination aliases if table is empty
+    const [aliasCount] = await db.query('SELECT COUNT(*) as c FROM destination_aliases');
+    if (aliasCount[0].c === 0) {
+      const defaultAliases = [
+        ['KR YOS', 'South Korea (Yeosu)'], ['KR ULS', 'South Korea (Ulsan)'], ['KR BUS', 'South Korea (Busan)'],
+        ['KR DAE', 'South Korea (Daesan)'], ['KR INS', 'South Korea (Incheon)'], ['KR PUS', 'South Korea (Busan)'],
+        ['JP CHB', 'Japan (Chiba)'], ['JP TOK', 'Japan (Tokyo)'], ['JP KOB', 'Japan (Kobe)'],
+        ['JP NAG', 'Japan (Nagoya)'], ['JP YOK', 'Japan (Yokohama)'], ['JP OSA', 'Japan (Osaka)'],
+        ['JP HIR', 'Japan (Hiroshima)'], ['JP KIT', 'Japan (Kitakyushu)'],
+        ['CN SHA', 'China (Shanghai)'], ['CN NBO', 'China (Ningbo)'], ['CN QDO', 'China (Qingdao)'],
+        ['CN TIA', 'China (Tianjin)'], ['CN DLC', 'China (Dalian)'], ['CN SHZ', 'China (Shenzhen)'],
+        ['CN GZH', 'China (Guangzhou)'],
+        ['TW KAO', 'Taiwan (Kaohsiung)'], ['TW TAI', 'Taiwan (Taichung)'],
+        ['SG SIN', 'Singapore'], ['SGSIN', 'Singapore'],
+        ['IN MUN', 'India (Mumbai)'], ['IN MAA', 'India (Chennai)'],
+        ['IN KOC', 'India (Kochi)'], ['IN KAN', 'India (Kandla)'],
+        ['IN DAH', 'India (Dahej)'], ['IN HAZ', 'India (Hazira)'], ['IN MOR', 'India (Mormugao)'],
+        ['AE FUJ', 'UAE (Fujairah)'], ['AE RUW', 'UAE (Ruwais)'],
+        ['AE JEA', 'UAE (Jebel Ali)'], ['AE DXB', 'UAE (Dubai)'],
+        ['SA RAS', 'Saudi Arabia (Ras Tanura)'], ['SA JUB', 'Saudi Arabia (Jubail)'],
+        ['QA RAS', 'Qatar (Ras Laffan)'],
+        ['KW AHM', 'Kuwait (Ahmadi)'], ['KW SHU', 'Kuwait (Shuaiba)'],
+        ['US HOU', 'USA (Houston)'], ['US FPT', 'USA (Freeport)'], ['US MOB', 'USA (Mobile)'],
+        ['US SAV', 'USA (Savannah)'], ['US LAX', 'USA (Los Angeles)'],
+        ['NL ROT', 'Netherlands (Rotterdam)'], ['NL TER', 'Netherlands (Terneuzen)'],
+        ['BE ANT', 'Belgium (Antwerp)'], ['BE FLU', 'Belgium (Flushing)'],
+        ['PA BAL', 'Panama (Balboa)'], ['PA CRI', 'Panama (Cristobal)'],
+        ['ID JAK', 'Indonesia (Jakarta)'], ['ID BAL', 'Indonesia (Balikpapan)'],
+        ['TH MAP', 'Thailand (Map Ta Phut)'], ['TH SRC', 'Thailand (Sri Racha)'],
+        ['VN HPH', 'Vietnam (Hai Phong)'], ['VN SGN', 'Vietnam (Ho Chi Minh)'],
+        ['PH BAT', 'Philippines (Batangas)'], ['PH MAN', 'Philippines (Manila)'],
+        ['MY JHR', 'Malaysia (Johor)'], ['MY PEN', 'Malaysia (Penang)'],
+        ['AU DAR', 'Australia (Darwin)'], ['AU MEL', 'Australia (Melbourne)'],
+        ['BR SAN', 'Brazil (Santos)'], ['BR SUP', 'Brazil (Suape)'],
+        ['DZ ARZ', 'Algeria (Arzew)'], ['DZ BET', 'Algeria (Bethioua)'],
+        ['TR ALI', 'Turkey (Aliaga)'], ['TR ISK', 'Turkey (Iskenderun)'],
+        ['EG SUE', 'Egypt (Suez)'], ['MA MOH', 'Morocco (Mohammedia)'],
+        ['ZA RCB', 'South Africa (Richards Bay)'], ['MZ MAP', 'Mozambique (Maputo)'],
+      ];
+      for (const [code, name] of defaultAliases) {
+        try { await db.query('INSERT IGNORE INTO destination_aliases (ais_code, display_name) VALUES (?, ?)', [code, name]); } catch(e) {}
+      }
     }
 
     console.log('[DB] ✓ All tables initialized');
