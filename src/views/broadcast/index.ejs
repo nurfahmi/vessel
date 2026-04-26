@@ -1,0 +1,348 @@
+<% var pageTitle = 'WhatsApp Broadcast' %>
+<%
+const ico = {
+  broadcast: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.93 4.93a10 10 0 000 14.14M7.76 7.76a6 6 0 000 8.49M12 12h.01"/></svg>',
+  compose: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  groups: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>',
+  phone: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+  history: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  clip: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>',
+  clock: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  send: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+  list: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  trash: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>',
+  check: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+  square: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>',
+  search: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  info: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+  plus: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  x: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+};
+%>
+<style>
+  .ico { width: 14px; height: 14px; display: inline-block; vertical-align: middle; }
+  .bc-page { max-width: 600px; margin: 0 auto; }
+  .bc-card { background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .bc-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
+  .sender-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-radius: 8px; border: 1px solid var(--border-main); margin-bottom: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  .dot.qr_pending { background: #f59e0b; animation: pulse 1.5s infinite; }
+  .dot.disconnected { background: #64748b; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  .btn { padding: 6px 12px; border-radius: 8px; font-size: 11px; border: none; cursor: pointer; font-weight: 500; }
+  .btn-sm { padding: 4px 8px; font-size: 10px; }
+  .btn-green { background: #0f766e; color: white; }
+  .btn-green:hover { background: #0d9488; }
+  .btn-red { background: rgba(239,68,68,0.15); color: #fca5a5; }
+  .btn-gray { background: #334155; color: #94a3b8; }
+  .btn-gray:hover { background: #475569; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .bc-input { background: var(--bg-input); border: 1px solid var(--border-main); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 12px; width: 100%; outline: none; box-sizing: border-box; }
+  .bc-input:focus { border-color: #3b82f6; }
+  .grp { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .grp:last-child { border-bottom: none; }
+  .grp.off { opacity: 0.4; }
+  .grp input[type=checkbox] { width: 16px; height: 16px; accent-color: #22c55e; flex-shrink: 0; }
+  .grp-name { flex: 1; font-size: 12px; color: var(--text-primary); }
+  .grp-sender { font-size: 9px; color: #67e8f9; }
+  .section-label { font-size: 9px; font-weight: 700; color: #67e8f9; padding: 8px 10px 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .qr-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .qr-box { background: #1e293b; border-radius: 16px; padding: 24px; text-align: center; width: 90%; max-width: 320px; }
+  .progress-track { height: 6px; border-radius: 3px; background: #1e293b; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #0f766e, #22c55e); transition: width 0.3s; }
+  .log-item { font-size: 11px; font-family: monospace; padding: 2px 0; }
+  .hist-item { padding: 8px 10px; border-bottom: 1px solid var(--border-main); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .hist-item:hover { background: rgba(255,255,255,0.02); }
+  .badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-main); margin-bottom: 12px; }
+  .tab { flex: 1; text-align: center; padding: 10px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: #22c55e; border-bottom-color: #22c55e; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  @media(max-width: 640px) {
+    .bc-page { padding: 0 4px; }
+    .bc-card { border-radius: 8px; padding: 10px; }
+    .sender-item { flex-wrap: wrap; gap: 8px; }
+    .sender-btns { width: 100%; display: flex; gap: 4px; }
+    .sender-btns .btn { flex: 1; }
+  }
+</style>
+
+<!-- QR Modal -->
+<div id="qrModal" style="display:none" class="qr-overlay" onclick="if(event.target===this)closeQR()">
+  <div class="qr-box">
+    <h3 style="color:#e2e8f0;margin:0 0 4px;font-size:14px;">Scan QR Code</h3>
+    <p style="font-size:10px;color:#94a3b8;margin-bottom:12px;" id="qrSenderName"></p>
+    <div id="qrImage" style="min-height:200px;display:flex;align-items:center;justify-content:center;">
+      <span style="color:#64748b;">Waiting for QR...</span>
+    </div>
+    <p id="qrStatus" style="font-size:10px;color:#94a3b8;margin-top:8px;"></p>
+    <button onclick="closeQR()" class="btn btn-gray" style="margin-top:10px;width:100%;">Close</button>
+  </div>
+</div>
+
+<div class="bc-page">
+  <!-- Header -->
+  <div style="padding:4px 0 8px;">
+    <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;display:flex;align-items:center;gap:6px;"><%- ico.broadcast %> Broadcast</h2>
+    <p style="font-size:10px;color:var(--text-muted);margin:2px 0 0;">Multi-sender group messaging</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('compose')"><%- ico.compose %> Compose</div>
+    <div class="tab" onclick="switchTab('groups')"><%- ico.groups %> Groups</div>
+    <div class="tab" onclick="switchTab('senders')"><%- ico.phone %> Senders</div>
+    <div class="tab" onclick="switchTab('history')"><%- ico.history %> History</div>
+  </div>
+
+  <!-- TAB: Compose -->
+  <div class="tab-content active" id="tab-compose">
+    <div class="bc-card">
+      <form id="broadcastForm" onsubmit="sendBroadcast(event)">
+        <textarea id="bcMessage" class="bc-input" rows="4" placeholder="Type your message...&#10;Use {Hello|Hi|Hey} for spintext" style="resize:vertical;margin-bottom:6px;"></textarea>
+        <p style="font-size:9px;color:#64748b;margin:0 0 10px;"><%- ico.info %> <code>{A|B|C}</code> → random pick per group</p>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px;"><%- ico.clip %> Attach media</label>
+          <input type="file" id="bcMedia" class="bc-input" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" style="padding:4px 8px;">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <div style="flex:1;">
+            <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px;"><%- ico.clock %> Min delay (s)</label>
+            <input type="number" id="delayMin" class="bc-input" value="30" min="1" max="120">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px;"><%- ico.clock %> Max delay (s)</label>
+            <input type="number" id="delayMax" class="bc-input" value="60" min="1" max="300">
+          </div>
+        </div>
+        <button type="submit" id="sendBtn" class="btn btn-green" style="width:100%;padding:10px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;"><%- ico.send %> Send Broadcast</button>
+      </form>
+      <!-- Progress -->
+      <div id="bcProgress" style="display:none;margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:4px;">
+          <span id="bcProgressText">Sending...</span>
+          <span id="bcProgressCount">0/0</span>
+        </div>
+        <div class="progress-track"><div class="progress-bar" id="bcProgressBar" style="width:0%"></div></div>
+        <div id="bcProgressLog" style="max-height:150px;overflow-y:auto;margin-top:6px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Groups -->
+  <div class="tab-content" id="tab-groups">
+    <div class="bc-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+        <h3 style="margin:0;"><%- ico.groups %> Groups (<span id="activeGroupCount"><%= groups.filter(g => g.active).length %></span>/<%= groups.length %>)</h3>
+
+        <div style="display:flex;gap:4px;">
+          <button onclick="checkAll(true)" class="btn btn-sm btn-gray" style="display:flex;align-items:center;gap:3px;"><%- ico.check %> All</button>
+          <button onclick="checkAll(false)" class="btn btn-sm btn-gray" style="display:flex;align-items:center;gap:3px;"><%- ico.square %> None</button>
+        </div>
+      </div>
+      <input type="text" id="groupSearch" class="bc-input" placeholder="🔍 Search groups..." oninput="filterGroups()" style="margin-bottom:8px;">
+      <div id="groupList" style="max-height:400px;overflow-y:auto;">
+        <% if (!groups.length) { %>
+          <p style="font-size:11px;color:var(--text-muted);text-align:center;padding:20px;">No groups yet. Connect a sender first.</p>
+        <% } %>
+        <% let lastSender = ''; %>
+        <% groups.forEach(g => { %>
+          <% if (g.sender_name !== lastSender) { lastSender = g.sender_name; %>
+            <div class="section-label"><%= g.sender_name %></div>
+          <% } %>
+          <div class="grp <%= g.active ? '' : 'off' %>" data-name="<%= (g.group_name||'').toLowerCase() %>" data-id="<%= g.id %>">
+            <input type="checkbox" <%= g.active ? 'checked' : '' %> onchange="toggleGroup(<%= g.id %>)">
+            <div style="flex:1;min-width:0;">
+              <div class="grp-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><%= g.group_name || g.group_jid %></div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Senders -->
+  <div class="tab-content" id="tab-senders">
+    <div class="bc-card">
+      <h3 style="margin:0 0 10px;"><%- ico.phone %> Senders</h3>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <input type="text" id="newSenderName" class="bc-input" placeholder="Sender name..." style="flex:1;">
+        <button onclick="addSender()" class="btn btn-green" style="display:flex;align-items:center;gap:3px;"><%- ico.plus %> Add</button>
+      </div>
+      <% if (!senders.length) { %>
+        <p style="font-size:11px;color:var(--text-muted);text-align:center;padding:20px;">No senders yet.</p>
+      <% } %>
+      <% senders.forEach(s => { %>
+        <div class="sender-item">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            <span class="dot <%= s._liveStatus %>"></span>
+            <div style="min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><%= s.name %></div>
+              <div style="font-size:9px;color:var(--text-muted);"><%= s.phone || 'Not connected' %></div>
+            </div>
+          </div>
+          <div class="sender-btns">
+            <% if (s._liveStatus === 'connected') { %>
+              <button onclick="fetchGroups('<%= s.session_id %>')" class="btn btn-sm btn-gray"><%- ico.list %></button>
+              <button onclick="disconnectSender('<%= s.session_id %>')" class="btn btn-sm btn-red"><%- ico.x %></button>
+            <% } else { %>
+              <button onclick="connectSender('<%= s.session_id %>', '<%= s.name %>')" class="btn btn-sm btn-green">Connect</button>
+            <% } %>
+            <button onclick="deleteSender(<%= s.id %>, '<%= s.name %>')" class="btn btn-sm btn-red"><%- ico.trash %></button>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- TAB: History -->
+  <div class="tab-content" id="tab-history">
+    <div class="bc-card">
+      <h3 style="margin:0 0 10px;"><%- ico.history %> History</h3>
+      <% if (!broadcasts.length) { %>
+        <p style="font-size:11px;color:var(--text-muted);text-align:center;padding:20px;">No broadcasts yet.</p>
+      <% } %>
+      <% broadcasts.forEach(b => { %>
+        <div class="hist-item" onclick="viewBroadcast(<%= b.id %>)">
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:12px;color:var(--text-primary);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><%= (b.message || '').substring(0, 40) %><%= (b.message||'').length > 40 ? '...' : '' %></div>
+            <div style="font-size:9px;color:var(--text-muted);margin-top:2px;">
+              <%= new Date(b.created_at).toLocaleString('en-GB', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) %> · <%= b.total_groups %> groups
+            </div>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
+            <span style="color:#22c55e;font-weight:600;font-size:11px;"><%= b.sent %></span>
+            <% if (b.failed > 0) { %><span style="color:#ef4444;font-size:11px;">/<%= b.failed %></span><% } %>
+            <span class="badge" style="background:<%= b.status === 'done' ? 'rgba(16,185,129,0.15);color:#6ee7b7' : b.status === 'running' ? 'rgba(59,130,246,0.15);color:#93c5fd' : 'rgba(239,68,68,0.15);color:#fca5a5' %>;"><%= b.status.toUpperCase() %></span>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<script>
+let qrInterval = null;
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', t.textContent.includes(name === 'compose' ? 'Compose' : name === 'groups' ? 'Groups' : name === 'senders' ? 'Senders' : 'History')));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+async function addSender() {
+  const name = document.getElementById('newSenderName').value.trim();
+  if (!name) return alert('Enter a sender name');
+  const r = await fetch('/broadcast/api/add-sender', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
+  const d = await r.json();
+  if (d.ok) location.reload(); else alert(d.error);
+}
+
+async function connectSender(sid, name) {
+  await fetch('/broadcast/api/connect/' + sid, { method:'POST' });
+  showQR(sid, name);
+}
+
+function showQR(sid, name) {
+  document.getElementById('qrSenderName').textContent = name;
+  document.getElementById('qrModal').style.display = 'flex';
+  document.getElementById('qrImage').innerHTML = '<span style="color:#64748b">Generating QR...</span>';
+  qrInterval = setInterval(async () => {
+    const r = await fetch('/broadcast/api/qr/' + sid);
+    const d = await r.json();
+    document.getElementById('qrStatus').textContent = 'Status: ' + d.status;
+    if (d.status === 'connected') {
+      clearInterval(qrInterval);
+      document.getElementById('qrImage').innerHTML = '<div style="color:#22c55e;font-size:28px;">✓ Connected!</div>';
+      setTimeout(() => location.reload(), 1500);
+    } else if (d.qr) {
+      document.getElementById('qrImage').innerHTML = '<img src="' + d.qr + '" style="width:220px;height:220px;border-radius:8px;">';
+    }
+  }, 2000);
+}
+
+function closeQR() { document.getElementById('qrModal').style.display='none'; if(qrInterval) clearInterval(qrInterval); }
+
+async function disconnectSender(sid) { if(!confirm('Disconnect?')) return; await fetch('/broadcast/api/disconnect/'+sid,{method:'POST'}); location.reload(); }
+async function deleteSender(id,name) { if(!confirm('Delete "'+name+'"?')) return; await fetch('/broadcast/api/sender/'+id,{method:'DELETE'}); location.reload(); }
+
+async function fetchGroups(sid) {
+  const btn = event.target; btn.disabled=true; btn.textContent='⏳';
+  const r = await fetch('/broadcast/api/fetch-groups/'+sid);
+  const d = await r.json();
+  if (d.ok) { alert('Found '+d.count+' groups'); location.reload(); }
+  else { alert('Error: '+d.error); btn.disabled=false; btn.textContent='📋'; }
+}
+
+async function toggleGroup(id) {
+  await fetch('/broadcast/api/toggle-group/'+id, {method:'POST'});
+  updateGroupCount();
+}
+
+function updateGroupCount() {
+  const checks = document.querySelectorAll('#groupList input[type="checkbox"]');
+  document.getElementById('activeGroupCount').textContent = Array.from(checks).filter(c=>c.checked).length;
+}
+
+async function checkAll(on) {
+  const checks = document.querySelectorAll('#groupList input[type="checkbox"]');
+  const ids = [];
+  checks.forEach(c => { if(c.checked !== on) { c.checked = on; const grp = c.closest('.grp'); if(grp) { grp.classList.toggle('off',!on); ids.push(grp.dataset.id); } } });
+  // Batch toggle
+  for (const id of ids) { await fetch('/broadcast/api/toggle-group/'+id,{method:'POST'}); }
+  updateGroupCount();
+}
+
+function filterGroups() {
+  const q = document.getElementById('groupSearch').value.toLowerCase();
+  document.querySelectorAll('.grp').forEach(el => { el.style.display = (el.dataset.name||'').includes(q) ? '' : 'none'; });
+}
+
+async function sendBroadcast(e) {
+  e.preventDefault();
+  const msg = document.getElementById('bcMessage').value;
+  const media = document.getElementById('bcMedia').files[0];
+  if (!msg && !media) return alert('Enter a message or attach media');
+  const fd = new FormData();
+  fd.append('message', msg);
+  fd.append('delay_min', document.getElementById('delayMin').value);
+  fd.append('delay_max', document.getElementById('delayMax').value);
+  if (media) fd.append('media', media);
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('sendBtn').textContent = '⏳ Starting...';
+  const r = await fetch('/broadcast/api/send', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) watchProgress(d.broadcastId, d.totalGroups);
+  else { alert('Error: '+d.error); document.getElementById('sendBtn').disabled=false; document.getElementById('sendBtn').textContent='🚀 Send Broadcast'; }
+}
+
+function watchProgress(bid, total) {
+  document.getElementById('bcProgress').style.display = 'block';
+  const log = document.getElementById('bcProgressLog');
+  log.innerHTML = '';
+  const es = new EventSource('/broadcast/api/status/' + bid);
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data), b = d.broadcast, done = b.sent+b.failed, pct = total>0?Math.round(done/total*100):0;
+    document.getElementById('bcProgressText').textContent = b.status==='done'?'✅ Complete!':b.status==='running'?'Sending...':b.status;
+    document.getElementById('bcProgressCount').textContent = done+'/'+total;
+    document.getElementById('bcProgressBar').style.width = pct+'%';
+    log.innerHTML = d.items.map(i => '<div class="log-item" style="color:'+(i.status==='sent'?'#22c55e':i.status==='failed'?'#ef4444':'#64748b')+'">'+(i.status==='sent'?'✓':i.status==='failed'?'✕':'⏳')+' '+(i.group_name||i.group_jid)+(i.error?' — '+i.error:'')+'</div>').join('');
+    log.scrollTop = log.scrollHeight;
+    if (b.status==='done'||b.status==='error') { es.close(); document.getElementById('sendBtn').disabled=false; document.getElementById('sendBtn').textContent='🚀 Send Broadcast'; }
+  };
+  es.onerror = () => es.close();
+}
+
+async function viewBroadcast(id) {
+  const r = await fetch('/broadcast/api/history/'+id);
+  const d = await r.json();
+  if (!d.broadcast) return;
+  const b = d.broadcast;
+  let msg = (b.message||'(no text)').substring(0,100);
+  let detail = 'Message: '+msg+'\nSent: '+b.sent+' | Failed: '+b.failed+'\n\n';
+  d.items.forEach(i => { detail += (i.status==='sent'?'✓':'✕')+' '+(i.group_name||i.group_jid)+' ('+(i.sender_name||'')+')' +(i.error?' — '+i.error:'')+'\n'; });
+  alert(detail);
+}
+</script>

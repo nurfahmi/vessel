@@ -73,6 +73,7 @@ const PORT = process.env.PORT || 3099;
   app.use('/vessel-intel', require('./src/routes/vesselIntel'));
   app.use('/availability', require('./src/routes/availability'));
   app.use('/kpler-vessels', require('./src/routes/kplerVessels'));
+  app.use('/broadcast', require('./src/routes/broadcast'));
 
   // Root redirect
   app.get('/', async (req, res) => {
@@ -91,5 +92,9 @@ const PORT = process.env.PORT || 3099;
     const { startTokenCron, startSyncCron } = require('./src/services/kplerCron');
     startTokenCron();
     startSyncCron();
+
+    // Restore WA sessions
+    const { restoreSessions } = require('./src/services/waService');
+    restoreSessions();
   });
 })();

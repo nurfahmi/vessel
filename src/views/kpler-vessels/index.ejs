@@ -60,9 +60,9 @@
     <p class="text-[11px] mt-0.5" style="color:var(--text-muted);"><%= vessels.length %> vessels shown</p>
   </div>
   <div class="flex items-center gap-2">
-    <a href="/kpler-vessels/panama" class="btn btn-sm" style="background:#1e3a5f;color:#93c5fd;padding:3px 10px;border-radius:4px;font-size:10px;text-decoration:none;">🚢 Panama</a>
+    <a href="/kpler-vessels/panama" class="btn btn-sm" style="background:#1e3a5f;color:#93c5fd;padding:3px 10px;border-radius:4px;font-size:10px;text-decoration:none;display:inline-flex;align-items:center;gap:3px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20l2-2h16l2 2"/><path d="M4 18V8a2 2 0 012-2h12a2 2 0 012 2v10"/><path d="M12 6V2"/></svg> Panama</a>
     <div class="flex items-center gap-1" style="background:var(--bg-input);border-radius:6px;padding:2px 4px;">
-      <button onclick="refreshFleet(this)" class="btn btn-sm" style="background:#0f766e;color:white;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;">🔄 Refresh</button>
+      <button onclick="refreshFleet(this)" class="btn btn-sm" style="background:#0f766e;color:white;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Refresh</button>
       <select id="enrichHours" style="background:transparent;color:#a78bfa;border:0;font-size:10px;outline:none;cursor:pointer;">
         <option value="1">1h</option><option value="4">4h</option><option value="8">8h</option>
         <option value="12" selected>12h</option><option value="24">24h</option><option value="0">Force</option>
@@ -71,7 +71,7 @@
   </div>
 </div>
 <form method="GET" class="filter-bar mb-3">
-  <input type="text" name="q" value="<%= filter.q %>" placeholder="🔍 Search name, IMO..." style="width:150px;">
+  <input type="text" name="q" value="<%= filter.q %>" placeholder="Search name, IMO..." style="width:150px;">
   <div class="filter-sep"></div>
   <select name="state" onchange="this.form.submit()">
     <option value="">All States</option>
@@ -92,7 +92,7 @@
   </select>
   <button type="submit" class="btn btn-sm btn-primary" style="padding:3px 10px;font-size:10px;">Search</button>
   <% if (filter.q || filter.state || filter.status || filter.ais) { %>
-    <a href="/kpler-vessels" style="font-size:10px;color:var(--text-muted);text-decoration:none;">✕ Clear</a>
+    <a href="/kpler-vessels" style="font-size:10px;color:var(--text-muted);text-decoration:none;display:inline-flex;align-items:center;gap:2px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Clear</a>
   <% } %>
 </form>
 
@@ -294,7 +294,7 @@ async function refreshFleet(btn) {
   closeBtn.style.display = 'none';
 
   // Step 1: Sync fleet
-  title.textContent = '🔄 Syncing Fleet...';
+  title.textContent = 'Syncing Fleet...';
   status.textContent = 'Fetching latest vessel data from Kpler...';
   try {
     const r = await fetch('/kpler-vessels/api/sync-fleet', { method: 'POST' });
@@ -309,7 +309,7 @@ async function refreshFleet(btn) {
   }
 
   // Step 2: Enrich tracked vessels
-  title.textContent = '⚡ Enriching Tracked Vessels...';
+  title.textContent = 'Enriching Tracked Vessels...';
   status.textContent = 'Starting enrichment...';
 
   const es = new EventSource('/kpler-vessels/api/enrich-all?hours=' + (document.getElementById('enrichHours')?.value || 12) + '&tracked=1');
@@ -335,7 +335,7 @@ async function refreshFleet(btn) {
       bar.style.width = '100%';
       pct.textContent = '100%';
       bar.style.background = 'linear-gradient(90deg,#22c55e,#4ade80)';
-      title.textContent = '✅ Enrichment Complete';
+      title.textContent = 'Enrichment Complete';
       status.textContent = `Done — ${d.enriched} enriched, ${d.skipped||0} skipped, ${d.failed} failed out of ${d.total}`;
       closeBtn.style.display = 'inline-block';
       btn.disabled = false;

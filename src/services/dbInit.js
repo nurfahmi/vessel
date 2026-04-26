@@ -464,6 +464,62 @@ async function initAllTables() {
       }
     }
 
+    // === WhatsApp Broadcast Tables ===
+    await db.query(`CREATE TABLE IF NOT EXISTS wa_sessions (
+      id VARCHAR(255) PRIMARY KEY,
+      session_id VARCHAR(100) NOT NULL,
+      data_type VARCHAR(50) NOT NULL,
+      data LONGTEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_session (session_id)
+    )`);
+
+    await db.query(`CREATE TABLE IF NOT EXISTS wa_senders (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      session_id VARCHAR(100) UNIQUE NOT NULL,
+      phone VARCHAR(30),
+      status ENUM('disconnected','connected','qr_pending') DEFAULT 'disconnected',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    await db.query(`CREATE TABLE IF NOT EXISTS wa_groups (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      sender_id INT NOT NULL,
+      group_jid VARCHAR(100) NOT NULL,
+      group_name VARCHAR(255),
+      active TINYINT(1) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_sender_group (sender_id, group_jid),
+      FOREIGN KEY (sender_id) REFERENCES wa_senders(id) ON DELETE CASCADE
+    )`);
+
+    await db.query(`CREATE TABLE IF NOT EXISTS wa_broadcasts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      message TEXT,
+      media_path VARCHAR(500),
+      media_type ENUM('image','document','video') DEFAULT NULL,
+      delay_min INT DEFAULT 30,
+      delay_max INT DEFAULT 60,
+      total_groups INT DEFAULT 0,
+      sent INT DEFAULT 0,
+      failed INT DEFAULT 0,
+      status ENUM('pending','running','done','error') DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    await db.query(`CREATE TABLE IF NOT EXISTS wa_broadcast_items (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      broadcast_id INT NOT NULL,
+      sender_id INT NOT NULL,
+      group_jid VARCHAR(100) NOT NULL,
+      group_name VARCHAR(255),
+      status ENUM('pending','sent','failed') DEFAULT 'pending',
+      error TEXT,
+      sent_at TIMESTAMP NULL,
+      FOREIGN KEY (broadcast_id) REFERENCES wa_broadcasts(id) ON DELETE CASCADE
+    )`);
+
     console.log('[DB] ✓ All tables initialized');
   } catch (err) {
     console.error('[DB] Init error:', err.message);
