@@ -126,6 +126,7 @@ const ico = {
           <span id="bcProgressCount">0/0</span>
         </div>
         <div class="progress-track"><div class="progress-bar" id="bcProgressBar" style="width:0%"></div></div>
+        <button id="stopBtn" onclick="stopBroadcast()" class="btn btn-red" style="width:100%;padding:8px;font-size:12px;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:4px;"><%- ico.x %> Stop Broadcast</button>
         <div id="bcProgressLog" style="max-height:150px;overflow-y:auto;margin-top:6px;"></div>
       </div>
     </div>
@@ -215,7 +216,7 @@ const ico = {
           <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
             <span style="color:#22c55e;font-weight:600;font-size:11px;"><%= b.sent %></span>
             <% if (b.failed > 0) { %><span style="color:#ef4444;font-size:11px;">/<%= b.failed %></span><% } %>
-            <span class="badge" style="background:<%= b.status === 'done' ? 'rgba(16,185,129,0.15);color:#6ee7b7' : b.status === 'running' ? 'rgba(59,130,246,0.15);color:#93c5fd' : 'rgba(239,68,68,0.15);color:#fca5a5' %>;"><%= b.status.toUpperCase() %></span>
+            <span class="badge" style="background:<%= b.status === 'done' ? 'rgba(16,185,129,0.15);color:#6ee7b7' : b.status === 'running' ? 'rgba(59,130,246,0.15);color:#93c5fd' : b.status === 'stopped' ? 'rgba(245,158,11,0.15);color:#fcd34d' : 'rgba(239,68,68,0.15);color:#fca5a5' %>;"><%= b.status.toUpperCase() %></span>
           </div>
         </div>
       <% }) %>
@@ -230,14 +231,21 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', t.textContent.includes(name === 'compose' ? 'Compose' : name === 'groups' ? 'Groups' : name === 'senders' ? 'Senders' : 'History')));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
+  sessionStorage.setItem('bc_active_tab', name);
 }
+
+// Restore tab on page load
+(function() {
+  const saved = sessionStorage.getItem('bc_active_tab');
+  if (saved) switchTab(saved);
+})();
 
 async function addSender() {
   const name = document.getElementById('newSenderName').value.trim();
   if (!name) return alert('Enter a sender name');
   const r = await fetch('/broadcast/api/add-sender', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
   const d = await r.json();
-  if (d.ok) location.reload(); else alert(d.error);
+  if (d.ok) { sessionStorage.setItem('bc_active_tab', 'senders'); location.reload(); } else alert(d.error);
 }
 
 async function connectSender(sid, name) {
@@ -272,7 +280,13 @@ async function fetchGroups(sid) {
   const btn = event.target; btn.disabled=true; btn.textContent='⏳';
   const r = await fetch('/broadcast/api/fetch-groups/'+sid);
   const d = await r.json();
-  if (d.ok) { alert('Found '+d.count+' groups'); location.reload(); }
+  if (d.ok) {
+    // Uncheck all groups after fetching
+    await fetch('/broadcast/api/uncheck-all-groups', { method:'POST' });
+    alert('Found '+d.count+' groups');
+    sessionStorage.setItem('bc_active_tab', 'senders');
+    location.reload();
+  }
   else { alert('Error: '+d.error); btn.disabled=false; btn.textContent='📋'; }
 }
 
@@ -318,21 +332,34 @@ async function sendBroadcast(e) {
   else { alert('Error: '+d.error); document.getElementById('sendBtn').disabled=false; document.getElementById('sendBtn').textContent='🚀 Send Broadcast'; }
 }
 
+let currentBroadcastId = null;
+
 function watchProgress(bid, total) {
+  currentBroadcastId = bid;
   document.getElementById('bcProgress').style.display = 'block';
+  document.getElementById('stopBtn').style.display = 'flex';
   const log = document.getElementById('bcProgressLog');
   log.innerHTML = '';
   const es = new EventSource('/broadcast/api/status/' + bid);
   es.onmessage = (e) => {
     const d = JSON.parse(e.data), b = d.broadcast, done = b.sent+b.failed, pct = total>0?Math.round(done/total*100):0;
-    document.getElementById('bcProgressText').textContent = b.status==='done'?'✅ Complete!':b.status==='running'?'Sending...':b.status;
+    document.getElementById('bcProgressText').textContent = b.status==='done'?'✅ Complete!':b.status==='stopped'?'⛔ Stopped':b.status==='running'?'Sending...':b.status;
     document.getElementById('bcProgressCount').textContent = done+'/'+total;
     document.getElementById('bcProgressBar').style.width = pct+'%';
-    log.innerHTML = d.items.map(i => '<div class="log-item" style="color:'+(i.status==='sent'?'#22c55e':i.status==='failed'?'#ef4444':'#64748b')+'">'+(i.status==='sent'?'✓':i.status==='failed'?'✕':'⏳')+' '+(i.group_name||i.group_jid)+(i.error?' — '+i.error:'')+'</div>').join('');
+    log.innerHTML = d.items.map(i => '<div class="log-item" style="color:'+(i.status==='sent'?'#22c55e':i.status==='failed'||i.status==='skipped'?'#ef4444':'#64748b')+'">'+(i.status==='sent'?'✓':i.status==='failed'||i.status==='skipped'?'✕':'⏳')+' '+(i.group_name||i.group_jid)+(i.error?' — '+i.error:'')+'</div>').join('');
     log.scrollTop = log.scrollHeight;
-    if (b.status==='done'||b.status==='error') { es.close(); document.getElementById('sendBtn').disabled=false; document.getElementById('sendBtn').textContent='🚀 Send Broadcast'; }
+    if (b.status==='done'||b.status==='error'||b.status==='stopped') { es.close(); document.getElementById('sendBtn').disabled=false; document.getElementById('sendBtn').textContent='🚀 Send Broadcast'; document.getElementById('stopBtn').style.display='none'; currentBroadcastId=null; }
   };
   es.onerror = () => es.close();
+}
+
+async function stopBroadcast() {
+  if (!currentBroadcastId) return;
+  if (!confirm('Stop broadcast?')) return;
+  const btn = document.getElementById('stopBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Stopping...';
+  await fetch('/broadcast/api/stop/' + currentBroadcastId, { method: 'POST' });
 }
 
 async function viewBroadcast(id) {

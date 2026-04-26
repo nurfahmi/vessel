@@ -8,6 +8,9 @@ const waService = require('../services/waService');
 const { spin } = require('../services/spintextService');
 const { isAuthenticated } = require('../middleware/auth');
 
+// Track stopped broadcasts in memory
+const stoppedBroadcasts = new Set();
+
 // Media upload config
 const uploadDir = path.join(__dirname, '../../uploads/broadcast');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -112,6 +115,15 @@ router.post('/api/toggle-group/:id', isAuthenticated, async (req, res) => {
   }
 });
 
+router.post('/api/uncheck-all-groups', isAuthenticated, async (req, res) => {
+  try {
+    await db.query('UPDATE wa_groups SET active = 0');
+    res.json({ ok: true });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 // ==================== Broadcast ====================
 
 router.post('/api/send', isAuthenticated, upload.single('media'), async (req, res) => {
@@ -207,6 +219,26 @@ router.get('/api/history/:id', isAuthenticated, async (req, res) => {
   }
 });
 
+// Stop broadcast
+router.post('/api/stop/:id', isAuthenticated, async (req, res) => {
+  try {
+    const id = req.params.id;
+    stoppedBroadcasts.add(parseInt(id));
+    // Mark remaining pending items as skipped
+    await db.query("UPDATE wa_broadcast_items SET status = 'skipped', error = 'Stopped by user' WHERE broadcast_id = ? AND status = 'pending'", [id]);
+    // Update broadcast status
+    const [counts] = await db.query(
+      'SELECT SUM(status="sent") as sent, SUM(status="failed") as failed, SUM(status="skipped") as skipped FROM wa_broadcast_items WHERE broadcast_id = ?', [id]
+    );
+    await db.query('UPDATE wa_broadcasts SET status = ?, sent = ?, failed = ? WHERE id = ?',
+      ['stopped', counts[0].sent || 0, (counts[0].failed || 0) + (counts[0].skipped || 0), id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 // ==================== Broadcast Executor ====================
 
 async function executeBroadcast(broadcastId, message, mediaPath, mediaType, delayMin, delayMax) {
@@ -234,16 +266,21 @@ async function executeBroadcast(broadcastId, message, mediaPath, mediaType, dela
 
     await Promise.all(senderPromises);
 
+    // Clean up stop flag
+    const wasStopped = stoppedBroadcasts.has(broadcastId);
+    stoppedBroadcasts.delete(broadcastId);
+
     // Final status
     const [counts] = await db.query(
-      'SELECT SUM(status="sent") as sent, SUM(status="failed") as failed FROM wa_broadcast_items WHERE broadcast_id = ?',
+      'SELECT SUM(status="sent") as sent, SUM(status="failed") as failed, SUM(status="skipped") as skipped FROM wa_broadcast_items WHERE broadcast_id = ?',
       [broadcastId]
     );
+    const finalStatus = wasStopped ? 'stopped' : 'done';
     await db.query('UPDATE wa_broadcasts SET status = ?, sent = ?, failed = ? WHERE id = ?',
-      ['done', counts[0].sent || 0, counts[0].failed || 0, broadcastId]
+      [finalStatus, counts[0].sent || 0, (counts[0].failed || 0) + (counts[0].skipped || 0), broadcastId]
     );
 
-    console.log(`[Broadcast] #${broadcastId} done: ${counts[0].sent} sent, ${counts[0].failed} failed`);
+    console.log(`[Broadcast] #${broadcastId} ${finalStatus}: ${counts[0].sent} sent, ${counts[0].failed} failed`);
   } catch (err) {
     console.error(`[Broadcast] #${broadcastId} error:`, err);
     await db.query('UPDATE wa_broadcasts SET status = ? WHERE id = ?', ['error', broadcastId]);
@@ -252,6 +289,11 @@ async function executeBroadcast(broadcastId, message, mediaPath, mediaType, dela
 
 async function processSenderQueue(broadcastId, sessionId, items, message, mediaPath, mediaType, delayMin, delayMax) {
   for (let i = 0; i < items.length; i++) {
+    // Check if broadcast was stopped
+    if (stoppedBroadcasts.has(broadcastId)) {
+      console.log(`[Broadcast] #${broadcastId} stopped by user, skipping remaining for ${sessionId}`);
+      return;
+    }
     const item = items[i];
     try {
       // Spin text for each group (unique variation)
